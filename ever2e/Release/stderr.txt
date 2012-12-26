@@ -1,0 +1,8 @@
+Warning: invalid read from peripheral memory at c307 [ F8BC: BD 05 C3   LDA abs, X       C305 ] 
+Warning: read from expansion memory at cfff
+Warning: invalid read from peripheral memory at c705 [ FAC7: B1 00      LDA (ind), Y       00 ] 
+Warning: invalid read from peripheral memory at c605 [ FAC7: B1 00      LDA (ind), Y       00 ] 
+Warning: invalid read from peripheral memory at c505 [ FAC7: B1 00      LDA (ind), Y       00 ] 
+Warning: invalid read from peripheral memory at c405 [ FAC7: B1 00      LDA (ind), Y       00 ] 
+Warning: invalid read from peripheral memory at c205 [ FAC7: B1 00      LDA (ind), Y       00 ] 
+Warning: invalid read from peripheral memory at c105 [ FAC7: B1 00      LDA (ind), Y       00 ] 

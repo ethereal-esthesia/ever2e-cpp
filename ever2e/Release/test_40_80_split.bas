@@ -1,0 +1,14 @@
+CALL -151
+300:  8D 0C C0 8D 0D C0  EA 4C 00 03
+G
+ 10 PR#3
+ 20 INPUT "Enter input string: "; A$
+ 30 HOME : IF A$ = "" THEN END
+ 40 A$ = A$ + " "
+ 50 LP = INT( (80*24-1)/LEN(A$) )
+ 60 FOR A = 1 TO LP : PRINT A$; : NEXT
+ 70 RM = (80*24-1) - (A-1)*LEN(A$)
+ 80 IF RM > 0 THEN PRINT LEFT$(A$, RM);
+ 90 POKE 2039, 128+ASC(MID$(A$, RM+1, 1))
+100 CALL 768
+RUN

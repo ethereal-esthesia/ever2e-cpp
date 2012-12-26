@@ -1,0 +1,33 @@
+  10  REM *************************
+  11  REM *** LO-RES COLOR TEST ***
+  12  REM *************************
+  13  REM
+  20  GR : POKE 49234, 0
+  30  DATA 0, 1, 11, 2, 7, 4, 14, 8, 13, 3, 6, 12, 9, 5, 10, 15
+  40  DIM C(16)
+  50  FOR K = 0 TO 15
+  60  READ C(K)
+  70  NEXT
+  80  FOR L = 0 TO 47
+  90  COLOR = C(INT(L/3))
+ 100  HLIN 0, 39 AT L
+ 110  NEXT L
+ 120  COLOR = 15
+ 130  R = 0: O = 2 : GOSUB 1000
+ 140  R = 1: O = 2 : GOSUB 1000
+ 150  R = 2: O = 1 : GOSUB 1000
+ 300  POKE 49168, 0
+ 310  IF PEEK(49152) < 128 THEN 310
+ 320  TEXT : HOME : GET C$
+ 999  END
+1000  REM *** DRAW FRAME
+1001  REM ***   R = ROW
+1002  REM ***   O = COLOR OFFSET (1 OR 2)
+1010  FOR K = R TO 47-R
+1020  IF K<40-R THEN PLOT K, R : PLOT 39-K, 47-R
+1030  COLOR = C( O+2*( K - 4*INT(K/4) ) )
+1040  PLOT R, K 
+1050  PLOT 39-R, 47-K
+1060  NEXT
+1070  RETURN
+RUN
