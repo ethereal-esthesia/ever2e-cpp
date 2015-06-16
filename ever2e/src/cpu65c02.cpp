@@ -38,7 +38,6 @@ using namespace std;
 
 #define PTR_ADD(reg)  { Uint16 oldPage = operandPtr>>8; operandPtr += (reg); if( (operandPtr>>8) != (oldPage) ) cycleCount++; }
 
-
 Uint8 Cpu65c02::_getMem8( Uint16 address )
 {
 	return memory->getMem(address);
@@ -84,11 +83,11 @@ const char Cpu65c02::OPCODE_NAME[66+4][5] =
 
 const char Cpu65c02::ADDRESS_MODE_NAME[15][13] =
 {
-	"imm         ", "abs         ", "zpg         ", 
-	"acc         ", "imp         ", "(ind, X)    ",
-	"(ind), Y    ", "zpg, X      ", "zpg, Y      ",
-	"abs, X      ", "abs, Y      ", "rel         ",
-	"(abs)       ", "abs (ind, X)", "(zpg)       "
+	"IMM         ", "ABS         ", "ZPG         ", 
+	"ACC         ", "IMP         ", "(IND, X)    ",
+	"(IND), Y    ", "ZPG, X      ", "ZPG, Y      ",
+	"ABS, X      ", "ABS, Y      ", "REL         ",
+	"(ABS)       ", "ABS (IND, X)", "(ZPG)       "
 };
 
 // See Sather 4-27 for complete instruction cycle breakdown
@@ -389,16 +388,16 @@ void Cpu65c02::_cycle()
 		return;
 
 #ifdef _CPU_TEST_OUTPUT	
-	static bool YES = false;
-	if( _PC == 0x800 )
-		YES = true;
-	if( YES ) {
-		cout << getOpcodeString();
-		cout << "   ";
-		cout << getRegisterString() << endl;
-	}
-	if( opcode->mnemonic == _BRA )
-		YES = false;
+//	static bool YES = false;
+//	if( _PC == 0x800 )
+//		YES = true;
+//	if( YES ) {
+//		cout << getOpcodeString();
+//		cout << "   ";
+//		cout << getRegisterString() << endl;
+//	}
+//	if( opcode->mnemonic == _BRA )
+//		YES = false;
 #endif
 
 	// Update results of completed instruction
@@ -540,17 +539,20 @@ void Cpu65c02::_cycle()
 		case _ADC:
 			// Add 1 cycle for decimal mode
 			// A + M + C -> A
+			operandValue = _getMem8(operandPtr);
 			if( _P & _D ) {
 				assert( false );  /// Dec mode not yet implemented ///
 			}
 			else {
-				operandValue = _getMem8(operandPtr);
-				Sint16 val16 = (Sint16) _A + operandValue + (_P&_C);
+				Uint16 valAdd = operandValue;
+				Uint16 val16 = _A + valAdd;
+				if( _P&_C )
+					val16++;
+				P_REG_ALT((val16^_A) & (val16^valAdd) & 0x80, _V);
 				_A = val16;
-				P_REG_ALT(_A & 0x80, _N);
-				P_REG_ALT(val16 < -0x80 || val16 > 0x7f, _V);
+				P_REG_ALT(val16 & 0x80, _N);
 				P_REG_ALT(!_A, _Z);
-				P_REG_ALT(val16 > 0xff, _C);
+				P_REG_ALT(val16 & 0x100, _C);
 			}
 			break;
 
@@ -663,10 +665,13 @@ void Cpu65c02::_cycle()
 		{
 			// A - M
 			operandValue = _getMem8(operandPtr);
-			Sint16 val16 = (Sint16) _A - operandValue;
+			Uint16 valAdd = operandValue^0xff;
+			Uint16 val16 = _A + valAdd;
+			val16++;
+			P_REG_ALT((val16^_A) & (val16^valAdd) & 0x80, _V);
 			P_REG_ALT(val16 & 0x80, _N);
-			P_REG_ALT(!val16, _Z);
-			P_REG_ALT(val16 >= 0, _C);
+			P_REG_ALT(!(val16 & 0xff), _Z);
+			P_REG_ALT(val16 & 0x100, _C);
 			break;
 		}
 		
@@ -674,10 +679,13 @@ void Cpu65c02::_cycle()
 		{
 			// X - M
 			operandValue = _getMem8(operandPtr);
-			Sint16 val16 = (Sint16) _X - operandValue;
+			Uint16 valAdd = operandValue^0xff;
+			Uint16 val16 = _X + valAdd;
+			val16++;
+			P_REG_ALT((val16^_X) & (val16^valAdd) & 0x80, _V);
 			P_REG_ALT(val16 & 0x80, _N);
-			P_REG_ALT(!val16, _Z);
-			P_REG_ALT(val16 >= 0, _C);
+			P_REG_ALT(!(val16 & 0xff), _Z);
+			P_REG_ALT(val16 & 0x100, _C);
 			break;
 		}
 
@@ -685,10 +693,13 @@ void Cpu65c02::_cycle()
 		{
 			// Y - M
 			operandValue = _getMem8(operandPtr);
-			Sint16 val16 = (Sint16) _Y - operandValue;
+			Uint16 valAdd = operandValue^0xff;
+			Uint16 val16 = _Y + valAdd;
+			val16++;
+			P_REG_ALT((val16^_Y) & (val16^valAdd) & 0x80, _V);
 			P_REG_ALT(val16 & 0x80, _N);
-			P_REG_ALT(!val16, _Z);
-			P_REG_ALT(val16 >= 0, _C);
+			P_REG_ALT(!(val16 & 0xff), _Z);
+			P_REG_ALT(val16 & 0x100, _C);
 			break;
 		}
 
@@ -959,12 +970,15 @@ void Cpu65c02::_cycle()
 */
 			}
 			else {
-				Sint16 val16 = (Sint16) _A - operandValue - !(_P&_C);
+				Uint16 valAdd = operandValue^0xff;
+				Uint16 val16 = _A + valAdd;
+				if( _P&_C )
+					val16++;
+				P_REG_ALT((val16^_A) & (val16^valAdd) & 0x80, _V);
 				_A = val16;
-				P_REG_ALT(_A & 0x80, _N);
-				P_REG_ALT(val16 <-0x80 || val16 > 0x7f, _V);
+				P_REG_ALT(val16 & 0x80, _N);
 				P_REG_ALT(!_A, _Z);
-				P_REG_ALT(val16 >= 0, _C);
+				P_REG_ALT(val16 & 0x100, _C);
 			}
 			break;
 
@@ -1648,15 +1662,15 @@ string Cpu65c02::getRegisterString()
 
 	out << hex << uppercase << setfill ('0');
     
-	out << "A: " << setw(2) << (int) _A << " ";
-	out << "Y: " << setw(2) << (int) _Y << " ";
-	out << "X: " << setw(2) << (int) _X << " ";
-	out << "PC: " << setw(4) << (int) _PC << " ";
-	out << "S: " << setw(2) << (int) _S << " ";
-	out << "P: ";
+	out << "A:" << setw(2) << (int) _A << " ";
+	out << "Y:" << setw(2) << (int) _Y << " ";
+	out << "X:" << setw(2) << (int) _X << " ";
+	out << "PC:" << setw(4) << (int) _PC << " ";
+	out << "S:" << setw(2) << (int) _S << " ";
+	out << "P:";
 	out << (_P&_N ? 'N':'.');
 	out << (_P&_V ? 'V':'.');
-	out << (_P&_1 ? '1':'.');
+	out << (_P&_1 ? 'R':'.');
 	out << (_P&_B ? 'B':'.');
 	out << (_P&_D ? 'D':'.');
 	out << (_P&_I ? 'I':'.');

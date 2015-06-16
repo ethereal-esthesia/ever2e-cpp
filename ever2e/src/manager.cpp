@@ -46,10 +46,10 @@ EventManager::EventManager( int xSize, int ySize, int bpp, bool fullScreen, cons
 
 	SDL_WM_SetCaption(caption, caption);
 	SDL_Surface * icon = NULL;
-	if( iconFile != NULL )
-		icon = IMG_Load(iconFile);
-	if( icon != NULL )
-		SDL_WM_SetIcon(icon, NULL);
+//	if( iconFile != NULL )
+//		icon = IMG_Load(iconFile);
+//	if( icon != NULL )
+//		SDL_WM_SetIcon(icon, NULL);
 
 	// Set mode
 	displaySurface = NULL;

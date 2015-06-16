@@ -37,8 +37,13 @@ bool hostCycle( EventLoop *emulator )
 	static ifstream::pos_type size = -1;
 	static int ptr = 0;
 	static char* buffer = NULL;
+	static char lc = 0;
+	static bool firstChar = true;
 	
-//	if( ptr == size ) {
+	while( ptr<size && (buffer[ptr]<0x20 || buffer[ptr]>=0x80) && buffer[ptr]!=0x0d )
+		ptr++;
+
+	//	if( ptr == size ) {
 	if( size == -1 ) {
 //		if( emulator->keyboard->getStrobe() == 0x96 ) {
 //			emulator->keyboard->setKeyboard(0x8D);
@@ -52,20 +57,23 @@ bool hostCycle( EventLoop *emulator )
 		size = file.tellg();
 		delete [] buffer;
 		buffer = new char[(int)size+1];
-		buffer[0] = ' ';
+//		buffer[0] = ' ';
 		file.seekg(0, ios::beg);
-		file.read(buffer+1, size);
+		file.read(buffer, size);
 		file.close();
 		ptr = 0;
 	}
 	else if( ptr < size ) {
 	
-		if( ! (emulator->memory->getMem(0xc000) & 0x80) ) {
-			char c = buffer[ptr++];
-			if( (c>=0x20 && c<0x80) || c==0x0d ) {
-				emulator->keyboard->keyPress(c);
-				emulator->keyboard->keyRelease(c);
-			}
+		if( (int) emulator->memory->getMem(0xc000) != (lc|0x80) ) {
+cout << (int)emulator->memory->getMem(0xc000) << " != " << (lc|0x80) << endl;
+			lc = buffer[ptr];
+			emulator->keyboard->keyPress(lc);
+			emulator->keyboard->keyRelease(lc);
+			if( !firstChar )
+				ptr++;
+			else
+				firstChar = false;
 		}
 
 	}

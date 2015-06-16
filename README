@@ -1,0 +1,135 @@
+-------------------------------------------------------------------------------
+                                  APPLICATION                                  
+-------------------------------------------------------------------------------
+
+To run the application, activate the "ever2e" executable.
+
+Emulated disk support is not yet implemented, but pre-generated files can be
+loaded into the emulator at startup by setting "ever2e.exe" as the default
+application used to open ".bas" files and then double clicking on the desired
+program.
+
+A few sample programs are included with the application.
+
+License information can be found in the file "LICENSE"
+
+Bugs reports / comments can be submitted here:
+http://www.cursorcorner.net/contact.php
+
+
+-------------------------------------------------------------------------------
+                                  COMPILATION                                  
+-------------------------------------------------------------------------------
+
+Compilation is multi-platform. Supported platforms are listed on the SDL
+website.
+
+Get source code from;
+http://cursorcorner.net/project.html
+
+Install SDL and SDL_image developer libraries:
+http://www.libsdl.org/
+http://www.libsdl.org/projects/SDL_image/
+
+Under Windows '98 or later:
+Compile using msysgit or Microsoft Visual C++.
+Originally compiled using msysgit and Eclipse C/C++ (project files included)
+Git for Windows (msysgit) can be downloaded at http://msysgit.github.com/
+link using SDL and SDL_IMAGE libraries
+
+Under Linux:
+use g++ to compile all source files in src directory
+link using SDL and SDL_IMAGE libraries
+
+Under Mac:
+Some of the key names need to be modified in "keytrans2e.cpp" to match Mac
+layout.
+
+
+-------------------------------------------------------------------------------
+                                  KNOWN BUGS                                   
+-------------------------------------------------------------------------------
+
+DHIRES bits should start scanning 7 pixels before HIRES bits. Could add an
+8-pixel border around a 567x384 screen to make 583x400 windowed mode and
+640x480 in full screen mode. This shift would eliminate the need for an
+alternate DHIRES palette and more accurately represents the expected IIe
+behavior.
+
+The color palette is slightly off. Greys, white, and 3-bit pastel colors should
+all have twice the intensity of 1 and 2-bit colors.
+
+If you press escape to exit F1 menu, first character of input is not deleted
+for ever2e testinput.txt file. If you press F1, it is. Extra space inserted
+for now as temporary solution.
+
+Should put a freeze on keyboard input while automated input is being processed.
+
+The following crashes the program: F1 toggle while executing BASIC program.
+This is likely because the CPU state is not yet saved properly.
+
+Add save state
+
+CPU bug - "HPLOT [x1], [y1] to [x2], [y2]" does not function correctly.
+
+Emulator does not pass memory test when ctrl-closed-apple-reset (ctrl-right-
+alt-F12) is pressed.
+
+Sound clips every few seconds possibly due to rounding error of elapsed time.
+Syncing the previous and next sound buffers may remedy this.
+
+Working directory is lost when ever2e is indirectly called, causing the icon
+to disappear and other potential side-effects. This can be fixed by reading
+arg[0] and determining working directory (default "./").
+
+Decimal mode not yet implemented in CPU.
+
+Minor - Open and closed apple keys can not be pressed at the same time.
+
+Minor - Initial state of caps-lock key is unknown.
+
+Minor - Pause does not display screen correctly in multi-monitor state
+such as the one seen in "test_split.bas". To fix this, either keep a copy of
+the last drawn screen (slow) or just a copy of the last 7680 states used to
+draw the screen (16k-32k overhead vs 8k overhead 60 times per second). The
+upside of using the screen buffer approach is that it scales to a resizable-
+window blit method. Alternatively a copy could only be made upon pausing the
+screen and the screen refresh method could simply reprint it. All other calls
+to refresh could be ignored since otherwise the screen is constantly updated.
+
+Minor - CPU speed modifies video sync timing applications - should draw
+every nth frame n times faster to avoid this problem. Use "test_split.bas"
+for an example of the bug (which is actually also a problem with hardware
+speed enhancements on the Apple IIe).
+
+Minor - The speaker tick waveform is very closely matched by the emulator, but
+to get a more precise static pattern of an Apple IIe may require recording a
+single speaker toggle in both directions. The static pattern is surprisingly
+stable between toggles. More research has also shown that the toggle air-
+pressure should be higher when switching from the relaxed to tense diaphragm
+state. The air-pressure physics calculation may be slightly off as well. It is
+currently modeled after spring physics.
+
+
+-------------------------------------------------------------------------------
+                                 VERSION INFO                                  
+-------------------------------------------------------------------------------
+
+Version 0.998b
+
+-Fixed accidental check-in of keyboard modification - +/= keys work again
+-Fixed keyboard timing to match IIe precisely
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Version 0.998
+
+-Fixed ctrl-reset strobe bug that was causing random errors
+-Undocumented NOP's now implemented with correct size / cycle times
+-Added input file option / default input is no longer loaded
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Version 0.994
+
+-First component-integrated release

@@ -205,64 +205,64 @@ Uint8 Memory128k::_readIo( Uint16 address )
 
 		case 0xc011:
 			// Read inverted BANK1
-			return _randRead7bit() | ((!getSwitch(_BANK1))<<7);
+			return keyboard->getKeyboard() & 0x7f | ((!getSwitch(_BANK1))<<7);
 			
 		case 0xc012:
 			// Read HRAMRD
-			return _randRead7bit() | (getSwitch(_RAMRD)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_RAMRD)<<7);
 			
 		case 0xc013:
 			// Read RAMRD
-			return _randRead7bit() | (getSwitch(_RAMRD)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_RAMRD)<<7);
 
 		case 0xc014:
 			// Read RAMWRT
-			return _randRead7bit() | (getSwitch(_RAMWRT)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_RAMWRT)<<7);
 			
 		case 0xc015:
 			// Read INTCXROM
-			return _randRead7bit() | (getSwitch(_INTCXROM)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_INTCXROM)<<7);
 			break;
 			
 		case 0xc016:
 			// Read ALTZP
-			return _randRead7bit() | (getSwitch(_ALTZP)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_ALTZP)<<7);
 			
 		case 0xc017:
 			// Read SLOTC3ROM
-			return _randRead7bit() | (getSwitch(_SLOTC3ROM)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_SLOTC3ROM)<<7);
 			
 		case 0xc018:
 			// Read 80STORE
-			return _randRead7bit() | (getSwitch(_80STORE)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_80STORE)<<7);
 			
 		case 0xc019:
 			// Read VBL
-			return _randRead7bit() | (monitor->getVbl()<<7);
+			return keyboard->getKeyboard() & 0x7f | (monitor->getVbl()<<7);
 			
 		case 0xc01a:
 			// Read TEXT
-			return _randRead7bit() | (getSwitch(_TEXT)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_TEXT)<<7);
 			
 		case 0xc01b:
 			// Read MIXED
-			return _randRead7bit() | (getSwitch(_MIXED)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_MIXED)<<7);
 			
 		case 0xc01c:
 			// Read PAGE2
-			return _randRead7bit() | (getSwitch(_PAGE2)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_PAGE2)<<7);
 			
 		case 0xc01d:
 			// Read HIRES
-			return _randRead7bit() | (getSwitch(_HIRES)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_HIRES)<<7);
 			
 		case 0xc01e:
 			// Read ALTCHARSET
-			return _randRead7bit() | (getSwitch(_ALTCHRSET)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_ALTCHRSET)<<7);
 
 		case 0xc01f:
 			// Read 80COL
-			return _randRead7bit() | (getSwitch(_80COL)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_80COL)<<7);
 
 		case 0xc030:
 		case 0xc031:

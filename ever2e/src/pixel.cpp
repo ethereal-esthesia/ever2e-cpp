@@ -181,7 +181,7 @@ void PixelSurface::convertToColorDepth( int bpp )
 void PixelSurface::loadFile( const char* fileName )
 {
 	assert( !locked );
-	surface = IMG_Load(fileName);
+//	surface = IMG_Load(fileName);
 	if( surface==NULL ) {
 		std::cerr << "PixelSurface::PixelSurface - Unable to load file: \"" << fileName << "\"\n";
 		exit(1);
