@@ -87,6 +87,7 @@ class EventLoop
 	class SoundBuffer* sound;          // Host sound interface
 	class HostKeyboard* hostKeyboard;  // Host keyboard interface
 	SaveState stateBuffer;
+	SaveState keyboardStateBuffer;
 	
 	Uint32 lastClock;
 	Sint32 elapsedTimeNanoseconds;
