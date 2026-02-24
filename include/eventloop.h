@@ -106,6 +106,7 @@ class EventLoop
 	std::deque<Uint8> pasteQueue;
 	bool pasteWasActive;
 	bool pasteClearPending;
+	int pasteClearDelayCycles;
 		
 #ifdef _BENCHMARK_
 	double times;
