@@ -25,6 +25,7 @@
  
 
 #include "eventloop.h"
+#include <cstring>
 
 
 using namespace std;
@@ -487,20 +488,7 @@ void EventLoop::cycle()
 							if( event->key.mod & KMOD_SHIFT ) {
 								char* clipText = SDL_GetClipboardText();
 								if( clipText != NULL ) {
-									for( int i = 0; clipText[i]; i++ ) {
-										Uint8 c = (Uint8) clipText[i];
-										if( c == '\r' ) {
-											pasteQueue.push_back(0x0d);
-											if( clipText[i+1] == '\n' )
-												i++;
-										}
-										else if( c == '\n' )
-											pasteQueue.push_back(0x0d);
-										else if( c == '\t' )
-											pasteQueue.push_back(0x09);
-										else if( c >= 0x20 && c <= 0x7e )
-											pasteQueue.push_back(c);
-									}
+									queuePasteText((const Uint8*)clipText, strlen(clipText));
 									SDL_free(clipText);
 								}
 							}
@@ -732,6 +720,18 @@ void EventLoop::dismissHostMenu()
 void EventLoop::setUnthrottled( bool enable )
 {
 	unthrottled = enable;
+}
+
+void EventLoop::queuePasteText( const Uint8* text, size_t size )
+{
+	if( text==NULL || size==0 )
+		return;
+	for( size_t i = 0; i<size; i++ ) {
+		Uint8 c = text[i];
+		if( c==0x0a )
+			c = 0x0d;
+		pasteQueue.push_back(c);
+	}
 }
 
 void EventLoop::queuePasteKey( Uint8 key )

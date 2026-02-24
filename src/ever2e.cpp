@@ -135,13 +135,9 @@ bool hostCycle( EventLoop *emulator )
 			ptr = 0;
 		}
 	else if( ptr<size ) {
-		// Match JVM behavior: queue the entire paste payload immediately, with LF normalized to CR.
-		while( ptr<size ) {
-			unsigned char c = (unsigned char)buffer[ptr++];
-			if( c==0x0a )
-				c = 0x0d;
-			emulator->queuePasteKey(c);
-		}
+		int totalSize = (int) size;
+		emulator->queuePasteText((const Uint8*)buffer + ptr, (size_t)(totalSize - ptr));
+		ptr = (int) size;
 	}
 
 	if( CpuStepLimit>=0 ) {
