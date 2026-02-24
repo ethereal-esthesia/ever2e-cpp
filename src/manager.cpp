@@ -58,6 +58,8 @@ EventManager::EventManager( int xSize, int ySize, int bpp, bool fullScreen, cons
 	instance = true;
 
 	displaySurfaceClass = new PixelSurface(displaySurface, true);
+	SDL_PumpEvents();
+	modState = SDL_GetModState();
 }
 
 EventManager::~EventManager()
