@@ -229,6 +229,7 @@ EventLoop::EventLoop()
 	defaultHue = hue;
 
 	checkEventTimer = 0;
+	translatedDownKeys.clear();
 
 #ifdef _BENCHMARK_
 	// Time CPU
@@ -471,11 +472,16 @@ void EventLoop::cycle()
 								// Pass key to keyboard handler
 								Uint8 key;
 								if( keyConvert->translate(event->key.key, event->key.mod, key) ) {
-									keyboard->keyPress(key);
-									hostKeyboard->keyPress(key);
+									// Track physical key-down state so repeated KEYDOWN events
+									// do not inflate key-down count and cause stuck keys.
+									if( translatedDownKeys.find(event->key.key)==translatedDownKeys.end() ) {
+										translatedDownKeys[event->key.key] = key;
+										keyboard->keyPress(key);
+										hostKeyboard->keyPress(key);
 #ifdef _KEY_TEST_OUTPUT
-									cout << "PRESS '" << SDL_GetKeyName(event->key.key) << hex << "' " << int(key) << dec << endl;
+										cout << "PRESS '" << SDL_GetKeyName(event->key.key) << hex << "' " << int(key) << dec << endl;
 #endif
+									}
 								}
 #ifdef _KEY_TEST_OUTPUT
 								else
@@ -491,13 +497,22 @@ void EventLoop::cycle()
 				case SDL_KEYUP: {
 				
 						// Pass key to keyboard handler
-						Uint8 key;
-						if( keyConvert->translate(event->key.key, event->key.mod, key) ) {
+						std::map<SDL_Keycode, Uint8>::iterator mapped = translatedDownKeys.find(event->key.key);
+						if( mapped!=translatedDownKeys.end() ) {
+							Uint8 key = mapped->second;
 							keyboard->keyRelease(key);
 #ifdef _KEY_TEST_OUTPUT
 							cout << "RELEASE '" << SDL_GetKeyName(event->key.key) << hex << "' " << int(key) << dec << endl;
 #endif
 							hostKeyboard->keyRelease(key);
+							translatedDownKeys.erase(mapped);
+						}
+						else {
+							Uint8 key;
+							if( keyConvert->translate(event->key.key, event->key.mod, key) ) {
+								keyboard->keyRelease(key);
+								hostKeyboard->keyRelease(key);
+							}
 						}
 							
 					}
@@ -519,6 +534,18 @@ void EventLoop::cycle()
 
 			}
 
+		}
+
+		// Recover from missed KEYUP events (e.g. focus transitions) by syncing
+		// tracked down-keys against current host keyboard state.
+		for( std::map<SDL_Keycode, Uint8>::iterator it = translatedDownKeys.begin(); it!=translatedDownKeys.end(); ) {
+			if( !manager->isPressed(it->first) ) {
+				keyboard->keyRelease(it->second);
+				hostKeyboard->keyRelease(it->second);
+				it = translatedDownKeys.erase(it);
+			}
+			else
+				it++;
 		}
 
 		// Check for passive key presses before continuing cycle (apple keys, reset key)
