@@ -1585,6 +1585,11 @@ void Cpu65c02::cycle()
 	
 }
 
+Uint16 Cpu65c02::getProgramCounter() const
+{
+	return _PC;
+}
+
 string Cpu65c02::getOpcodeString()
 {
 
