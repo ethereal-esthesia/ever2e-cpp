@@ -37,10 +37,12 @@ using namespace std;
 const char* InputFileName = NULL;
 string GuestCoreDumpFile;
 bool PrintTextAtExit = false;
+bool PrintCpuStateAtExit = false;
 long long CpuStepLimit = -1;
 long long CpuStepCount = 0;
 bool HeadlessMode = false;
 vector<Uint16> HaltExecutionPcs;
+vector<Uint16> RequiredHaltPcs;
 bool HaltedAtExecutionPc = false;
 Uint16 HaltedExecutionPc = 0;
 
@@ -93,6 +95,17 @@ void printTextScreen( EventLoop* emulator )
 		cout << line << "\n";
 	}
 	cout << "text_screen_end\n";
+}
+
+void printCpuState( EventLoop* emulator )
+{
+	cout << "cpu_state_begin\n";
+	cout << "steps=" << CpuStepCount << "\n";
+	cout << "halt_requested=" << (HaltedAtExecutionPc ? 1 : 0) << "\n";
+	if( HaltedAtExecutionPc )
+		cout << "halt_pc=" << hex << uppercase << setw(4) << setfill('0') << (int)HaltedExecutionPc << dec << "\n";
+	cout << "registers=" << emulator->cpu->getRegisterString() << "\n";
+	cout << "cpu_state_end\n";
 }
 
 bool hostCycle( EventLoop *emulator )
@@ -171,7 +184,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--steps <count>] [--halt-execution <addr[,addr...]>] [--headless]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -200,6 +213,10 @@ int main( int args, char** argv )
 		}
 		if( arg == "--print-text-at-exit" ) {
 			PrintTextAtExit = true;
+			continue;
+		}
+		if( arg == "--print-cpu-state-at-exit" ) {
+			PrintCpuStateAtExit = true;
 			continue;
 		}
 		if( arg == "--headless" ) {
@@ -244,6 +261,24 @@ int main( int args, char** argv )
 			}
 			continue;
 		}
+		if( arg == "--require-halt-pc" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --require-halt-pc\n";
+				return 1;
+			}
+			if( !appendWordListArg(argv[++i], RequiredHaltPcs) ) {
+				cerr << "Invalid value for --require-halt-pc\n";
+				return 1;
+			}
+			continue;
+		}
+		if( arg.find("--require-halt-pc=")==0 ) {
+			if( !appendWordListArg(arg.substr(sizeof("--require-halt-pc=")-1), RequiredHaltPcs) ) {
+				cerr << "Invalid value for --require-halt-pc\n";
+				return 1;
+			}
+			continue;
+		}
 		cerr << "Unrecognized argument: " << arg << "\n";
 		return 1;
 	}
@@ -269,8 +304,25 @@ int main( int args, char** argv )
 
 	if( PrintTextAtExit )
 		printTextScreen(&emulator);
+	if( PrintCpuStateAtExit )
+		printCpuState(&emulator);
 	if( !HaltExecutionPcs.empty() && HaltedAtExecutionPc ) {
 		cout << "Stopped at PC=" << hex << uppercase << setw(4) << setfill('0') << (int)HaltedExecutionPc << dec << "\n";
+	}
+	if( !RequiredHaltPcs.empty() ) {
+		Uint16 finalPc = HaltedAtExecutionPc ? HaltedExecutionPc : emulator.cpu->getProgramCounter();
+		bool matched = false;
+		for( size_t i = 0; i<RequiredHaltPcs.size(); i++ ) {
+			if( finalPc==RequiredHaltPcs[i] ) {
+				matched = true;
+				break;
+			}
+		}
+		if( !matched ) {
+			cerr << "Error: final PC did not match required value(s). PC="
+				 << hex << uppercase << setw(4) << setfill('0') << (int)finalPc << dec << "\n";
+			return 2;
+		}
 	}
 
 	if( !GuestCoreDumpFile.empty() && !writeGuestCoreDump(&emulator, GuestCoreDumpFile) )
