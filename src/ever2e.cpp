@@ -81,6 +81,18 @@ char transliterateText( Uint8 ascii )
 	return (char) ascii;
 }
 
+bool isGuestPromptReadyForPaste( EventLoop* emulator )
+{
+	int page = emulator->memory->getSwitch(Memory128k::_PAGE2) ? 2:1;
+	for( int y = 0; y<24; y++ ) {
+		Uint16 addr = Monitor560x192::getAddressLo40(page, y, 0);
+		Uint8 c = emulator->memory->getMem(addr) & 0x7f;
+		if( c==']' || c=='*' )
+			return true;
+	}
+	return false;
+}
+
 void printTextScreen( EventLoop* emulator )
 {
 	int page = emulator->memory->getSwitch(Memory128k::_PAGE2) ? 2:1;
@@ -148,6 +160,8 @@ bool hostCycle( EventLoop *emulator )
 			ptr = 0;
 		}
 	else if( ptr<size ) {
+		if( !isGuestPromptReadyForPaste(emulator) )
+			return false;
 		int totalSize = (int) size;
 		emulator->queuePasteText((const Uint8*)buffer + ptr, (size_t)(totalSize - ptr));
 		ptr = (int) size;
