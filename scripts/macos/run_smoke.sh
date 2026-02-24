@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_SH="$ROOT_DIR/scripts/macos/run.sh"
 
 PASTE_FILE="${PASTE_FILE:-$ROOT_DIR/release/opcode_smoke_loader_hgr_mem_32k.mon}"
-STEPS="${STEPS:-80000000}"
+STEPS="${STEPS:-200000000}"
 HALT_EXECUTION="${HALT_EXECUTION:-0x6897,0x6885}"
 REQUIRE_HALT_PC="${REQUIRE_HALT_PC:-0x6897}"
 TRACE_STEPS_FROM="${TRACE_STEPS_FROM:-}"
