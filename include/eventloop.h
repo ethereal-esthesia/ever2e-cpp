@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <deque>
 #include <map>
 #include "SDL.h"
 #include "manager.h"
@@ -100,6 +101,7 @@ class EventLoop
 	Sint16 defaultHue;
 	Uint32 checkEventTimer;
 	std::map<SDL_Keycode, Uint8> translatedDownKeys;
+	std::deque<Uint8> pasteQueue;
 		
 #ifdef _BENCHMARK_
 	double times;
