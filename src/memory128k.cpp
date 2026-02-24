@@ -773,8 +773,8 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 #ifdef _MEMORY_TEST_OUTPUT	
 				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
 #endif	
-				return _randRead();
-				return 0;
+				// Match Apple IIe floating-bus behavior used by ROM startup checks.
+				return 0xff;
 			}
 			
 		}
@@ -796,7 +796,8 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 #ifdef _MEMORY_TEST_OUTPUT	
 				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
 #endif	
-				return _randRead();
+				// Match Apple IIe floating-bus behavior used by ROM startup checks.
+				return 0xff;
 			}
 		}
 	}
@@ -830,8 +831,9 @@ Uint8 Memory128k::_readExpMem( Uint16 address )
 #ifdef _MEMORY_TEST_OUTPUT	
 	cerr << "Warning: read from expansion memory at " << hex << setw(4) << (int) address << endl;
 #endif
-	
-	return 0;
+
+	// No expansion ROM selected: emulate floating bus high.
+	return 0xff;
 	
 /*
 		

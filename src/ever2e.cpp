@@ -134,6 +134,7 @@ bool hostCycle( EventLoop *emulator )
 	static ifstream::pos_type size = -1;
 	static int ptr = 0;
 	static char* buffer = NULL;
+	bool hasInputFile = (InputFileName!=NULL && InputFileName[0]!='\0');
 
 	if( !HaltExecutionPcs.empty() ) {
 		Uint16 pc = emulator->cpu->getProgramCounter();
@@ -148,7 +149,7 @@ bool hostCycle( EventLoop *emulator )
 	}
 
 	//	if( ptr == size ) {
-	if( size == -1 ) {
+	if( hasInputFile && size == -1 ) {
 //		if( emulator->keyboard->getStrobe() == 0x96 ) {
 //			emulator->keyboard->setKeyboard(0x8D);
 		ifstream file;
@@ -167,7 +168,7 @@ bool hostCycle( EventLoop *emulator )
 			file.close();
 			ptr = 0;
 		}
-	else if( ptr<size ) {
+	else if( hasInputFile && ptr<size ) {
 		if( !isGuestPromptReadyForPaste(emulator) )
 			return false;
 		int totalSize = (int) size;
