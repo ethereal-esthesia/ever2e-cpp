@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <map>
 #include "SDL.h"
 #include "manager.h"
 #include "sound.h"
@@ -98,6 +99,7 @@ class EventLoop
 	Sint16 hue;
 	Sint16 defaultHue;
 	Uint32 checkEventTimer;
+	std::map<SDL_Keycode, Uint8> translatedDownKeys;
 		
 #ifdef _BENCHMARK_
 	double times;
