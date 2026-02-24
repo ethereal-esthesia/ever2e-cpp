@@ -708,12 +708,14 @@ bool EventLoop::getExitStatus()
 
 void EventLoop::storeState( SaveState& state )
 {
+	cpu->store(state);
 	memory->store(state);
 	monitor->store(state);
 }
 
 void EventLoop::restoreState( SaveState& state )
 {	
+	assert( cpu->restore(state)==0 );
 	assert( memory->restore(state)==0 );
 	assert( monitor->restore(state)==0 );
 	state.clear();

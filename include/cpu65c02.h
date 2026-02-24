@@ -37,6 +37,7 @@
 #include "SDL.h"
 #include "mon560x192.h"
 #include "memory128k.h"
+#include "savestate.h"
 
 
 #define _CPU_TEST_OUTPUT	
@@ -209,6 +210,10 @@ public:
 		// This will not effect other hardware cycling or speaker pitch
 
 	int getMultiplier();
+
+	void store( SaveState& state );
+
+	int restore( SaveState& state );
 	
 	void interrupt( OpcodeMnemonic type );
 		// Inserts an instruction to be executed at the end of the current instruction cycle

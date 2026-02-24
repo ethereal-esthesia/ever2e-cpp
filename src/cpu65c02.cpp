@@ -1514,6 +1514,47 @@ int Cpu65c02::getMultiplier()
 	return multiplier;
 }
 
+void Cpu65c02::store( SaveState& state )
+{
+	Uint16 opcodeIndex = (Uint16) (opcode - &OPCODE_65C02[0]);
+	state.write8(_A);
+	state.write8(_Y);
+	state.write8(_X);
+	state.write16(_PC);
+	state.write8(_S);
+	state.write8(_P);
+	state.write32((Uint32) multiplier);
+	state.write32((Uint32) cycleCount);
+	state.write32((Uint32) idleCycle);
+	state.write16(opcodeIndex);
+	state.write16((Uint16) interruptPending);
+	state.write16((Uint16) textType);
+}
+
+int Cpu65c02::restore( SaveState& state )
+{
+	_A = state.read8();
+	_Y = state.read8();
+	_X = state.read8();
+	_PC = state.read16();
+	_S = state.read8();
+	_P = state.read8();
+	multiplier = (int) state.read32();
+	cycleCount = (int) state.read32();
+	idleCycle = (int) state.read32();
+	Uint16 opcodeIndex = state.read16();
+	interruptPending = (OpcodeMnemonic) state.read16();
+	textType = (TextType) state.read16();
+	soundTimer = 0;
+	soundWaitLength = 0;
+	soundDuration = 0;
+
+	if( opcodeIndex >= sizeof(OPCODE_65C02)/sizeof(OPCODE_65C02[0]) )
+		return 1;
+	opcode = &OPCODE_65C02[opcodeIndex];
+	return 0;
+}
+
 void Cpu65c02::interrupt( OpcodeMnemonic type )
 {
 	interruptPending = type;	
