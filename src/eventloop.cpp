@@ -341,6 +341,7 @@ void EventLoop::cycle()
 	if( checkEventTimer>10 ) {
 
 		checkEventTimer = 0;
+		manager->refreshEventStatus();
 		bool suppressHostKeys = (hostMenu==MENU_OFF && !pasteQueue.empty());
 
 		bool doubleDown = false;  // Keep track of whether key events are in a lag state to avoid trailing events
