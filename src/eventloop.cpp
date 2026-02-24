@@ -717,6 +717,16 @@ void EventLoop::dismissHostMenu()
 		_toggleHostInterface(MENU_OFF);
 }
 
+void EventLoop::queuePasteKey( Uint8 key )
+{
+	pasteQueue.push_back(key);
+}
+
+bool EventLoop::hasPendingPaste() const
+{
+	return !pasteQueue.empty();
+}
+
 void EventLoop::storeState( SaveState& state )
 {
 	cpu->store(state);
