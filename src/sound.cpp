@@ -39,6 +39,12 @@ SoundBuffer::SoundBuffer()
 		return;
 	}
 	instance = true;
+	if( !SDL_WasInit(SDL_INIT_AUDIO) ) {
+		if( !SDL_InitSubSystem(SDL_INIT_AUDIO) ) {
+			cerr << "Error initializing sound subsystem: " << SDL_GetError() << endl;
+			exit(1);
+		}
+	}
 
 	SDL_AudioSpec audioSpec;
 	audioSpec.format = SDL_AUDIO_S16;
