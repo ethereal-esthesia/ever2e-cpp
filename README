@@ -25,6 +25,7 @@ From the repository root:
 
     ./scripts/macos/build.sh
     ./scripts/macos/run.sh
+    ./scripts/macos/run_smoke.sh
 
 Optional cleanup:
 
@@ -34,6 +35,12 @@ Notes:
 - The run script starts from "release/" so ROM/assets resolve correctly.
 - If SDL is installed in a non-standard location, set PKG_CONFIG_PATH before
   running build.sh.
+- `run_smoke.sh` runs the opcode smoke paste-loader with default halt addresses:
+  - PASS loop: `0x33D2`
+  - FAIL loop: `0x33C0`
+  - Override with env vars if needed:
+    - `STEPS=120000000 ./scripts/macos/run_smoke.sh`
+    - `HALT_EXECUTION=0x1234,0x5678 ./scripts/macos/run_smoke.sh`
 
 
 -------------------------------------------------------------------------------
