@@ -32,6 +32,31 @@ using namespace std;
 
 const char* InputFileName = NULL;
 string GuestCoreDumpFile;
+bool PrintTextAtExit = false;
+
+char transliterateText( Uint8 ascii )
+{
+	ascii &= 0x7f;
+	if( ascii<0x20 || ascii==0x7f )
+		ascii = 0x7e;
+	return (char) ascii;
+}
+
+void printTextScreen( EventLoop* emulator )
+{
+	int page = emulator->memory->getSwitch(Memory128k::_PAGE2) ? 2:1;
+	cout << "text_screen_begin\n";
+	for( int y = 0; y<24; y++ ) {
+		string line;
+		line.reserve(40);
+		for( int x = 0; x<40; x++ ) {
+			Uint16 addr = Monitor560x192::getAddressLo40(page, y, x);
+			line.push_back(transliterateText(emulator->memory->getMem(addr)));
+		}
+		cout << line << "\n";
+	}
+	cout << "text_screen_end\n";
+}
 
 bool hostCycle( EventLoop *emulator )
 {
@@ -105,7 +130,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -132,6 +157,10 @@ int main( int args, char** argv )
 			GuestCoreDumpFile = arg.substr(sizeof("--guest-core-dump=")-1);
 			continue;
 		}
+		if( arg == "--print-text-at-exit" ) {
+			PrintTextAtExit = true;
+			continue;
+		}
 		cerr << "Unrecognized argument: " << arg << "\n";
 		return 1;
 	}
@@ -145,6 +174,9 @@ int main( int args, char** argv )
 	do
 		emulator.cycle();
 	while( !emulator.getExitStatus() );
+
+	if( PrintTextAtExit )
+		printTextScreen(&emulator);
 
 	if( !GuestCoreDumpFile.empty() && !writeGuestCoreDump(&emulator, GuestCoreDumpFile) )
 		return 1;
