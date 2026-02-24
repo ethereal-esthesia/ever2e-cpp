@@ -60,6 +60,7 @@ const string EventLoop::HOST_HELP[] =
 	"",
 	"PAUSE     Halt Emulation",
 	"ALT-F4    Close Application",
+	"SHIFT+INS Paste from clipboard",
 	"",
 	"",
 	"* Coming Soon",
@@ -457,6 +458,32 @@ void EventLoop::cycle()
 								monitor->setOffset( (WINDOW_X_SIZE-X_SIZE)>>1, (WINDOW_Y_SIZE-Y_SIZE)>>1 );
 							}
 							break;
+
+						case SDLK_INSERT:
+							if( doubleDown )
+								break;
+							// Shift+Insert paste from host clipboard
+							if( event->key.mod & KMOD_SHIFT ) {
+								char* clipText = SDL_GetClipboardText();
+								if( clipText != NULL ) {
+									for( int i = 0; clipText[i]; i++ ) {
+										Uint8 c = (Uint8) clipText[i];
+										if( c == '\r' ) {
+											pasteQueue.push_back(0x0d);
+											if( clipText[i+1] == '\n' )
+												i++;
+										}
+										else if( c == '\n' )
+											pasteQueue.push_back(0x0d);
+										else if( c == '\t' )
+											pasteQueue.push_back(0x09);
+										else if( c >= 0x20 && c <= 0x7e )
+											pasteQueue.push_back(c);
+									}
+									SDL_free(clipText);
+								}
+							}
+							break;
 						
 						case SDLK_PAUSE:
 							if( doubleDown||hostMenu!=MENU_OFF )
@@ -576,7 +603,17 @@ void EventLoop::cycle()
 			ctrlKey = CtrlKey2e( ctrlKey | ( (manager->isPressed(SDLK_LCTRL) || manager->isPressed(SDLK_RCTRL)) ? CTRL_KEY : NO_CTRL_KEY ) );
 			ctrlKey = CtrlKey2e( ctrlKey | ( (manager->isPressed(SDLK_LSHIFT) || manager->isPressed(SDLK_RSHIFT)) ? SHIFT_KEY : NO_CTRL_KEY ) );
 			keyboard->setCtrlKeyState(ctrlKey);
+			if( (ctrlKey&RESET_KEY) && (ctrlKey&CTRL_KEY) )
+				pasteQueue.clear();
 			
+		}
+
+		// Inject queued paste text one key at a time only when keyboard latch is clear.
+		if( hostMenu==MENU_OFF && !pasteQueue.empty() && !(memory->getMem(0xc000)&0x80) ) {
+			Uint8 pasteKey = pasteQueue.front();
+			pasteQueue.pop_front();
+			keyboard->keyPress(pasteKey);
+			keyboard->keyRelease(pasteKey);
 		}
 
 	}
