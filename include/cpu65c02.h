@@ -250,7 +250,7 @@ public:
 	// The following routines use Apple IIe standard I/O memory writes to directly change the emulation state
 	// If the alterations are expected to be temporary, the state should be saved and reloaded after these routines are called
 
-		int putText( int page, int row, int col, char c, TextType type = ANY, bool debug = false );
+		int putText( int page, int row, int col, char c, TextType = ANY );
 		// Returns the number of displayed characters (either 0 or 1)
 		// Application terminates with an error message if "row" or "col" falls outside of the current addressable window
 		// The top / left corner is at position 0, 0
@@ -302,7 +302,7 @@ public:
 		//   '\007' - trigger a bell sound
 		// Other escape sequences are reserved / ignored
 	
-		int putText( int page, int row, int col, const std::string &str, TextType type = ANY, bool debug = false );
+		int putText( int page, int row, int col, const std::string &str, TextType type = ANY );
 		// Returns the number of displayed characters
 		// See overloaded "putText" function above for detailed description
 	
