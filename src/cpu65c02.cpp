@@ -1032,9 +1032,9 @@ void Cpu65c02::_cycle()
 			break;
 
 		case _TRB:
-			// A & M -> M
+			// M & ~A -> M
 			operandValue = _getMem8(operandPtr);
-			P_REG_ALT(_A & operandValue, _Z);
+			P_REG_ALT(!(_A & operandValue), _Z);
 			operandValue &= ~_A;
 			memory->putMem(operandPtr, operandValue);
 			break;
