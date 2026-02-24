@@ -101,9 +101,6 @@ bool hostCycle( EventLoop *emulator )
 	static ifstream::pos_type size = -1;
 	static int ptr = 0;
 	static char* buffer = NULL;
-	static Uint8 lc = 0;
-	static bool waitForPrompt = true;
-	static int promptCheckDivider = 0;
 
 	if( !HaltExecutionPcs.empty() ) {
 		Uint16 pc = emulator->cpu->getProgramCounter();
@@ -132,66 +129,18 @@ bool hostCycle( EventLoop *emulator )
 		delete [] buffer;
 		buffer = new char[(int)size+1];
 //		buffer[0] = ' ';
-		file.seekg(0, ios::beg);
-		file.read(buffer, size);
-		file.close();
-		ptr = 0;
-		lc = emulator->memory->getMem(0xc000) & 0x7f;
-		waitForPrompt = true;
-		promptCheckDivider = 0;
-	}
+			file.seekg(0, ios::beg);
+			file.read(buffer, size);
+			file.close();
+			ptr = 0;
+		}
 	else if( ptr<size ) {
-		if( waitForPrompt ) {
-			// Wait until BASIC/monitor prompt is visible so the injected loader starts at a stable command line.
-			if( (++promptCheckDivider & 0x7ff) == 0 ) {
-				bool promptSeen = false;
-				for( int y = 0; y<24 && !promptSeen; y++ ) {
-					for( int x = 0; x<40; x++ ) {
-						Uint16 addr = Monitor560x192::getAddressLo40(1, y, x);
-						Uint8 c = emulator->memory->getMem(addr) & 0x7f;
-						if( c==']' || c=='*' ) {
-							promptSeen = true;
-							break;
-						}
-					}
-				}
-				if( promptSeen )
-					waitForPrompt = false;
-			}
-			if( waitForPrompt ) {
-				if( CpuStepLimit>=0 ) {
-					CpuStepCount++;
-					if( CpuStepCount>=CpuStepLimit )
-						emulator->requestExit();
-				}
-				return false;
-			}
-		}
-
+		// Match JVM behavior: queue the entire paste payload immediately, with LF normalized to CR.
 		while( ptr<size ) {
-			unsigned char c = (unsigned char)buffer[ptr];
-			if( c==0x0d || c==0x0a || (c>=0x20 && c<0x80) )
-				break;
-			ptr++;
-		}
-		if( ptr<size ) {
-			if( (int) emulator->memory->getMem(0xc000) != (lc|0x80) ) {
-				unsigned char c = (unsigned char)buffer[ptr++];
-				if( c==0x0d ) {
-					lc = 0x0d;
-					// Normalize CRLF to one Apple II CR
-					if( ptr<size && (unsigned char)buffer[ptr]==0x0a )
-						ptr++;
-				}
-				else if( c==0x0a ) {
-					// Normalize LF-only text files into Apple II CR
-					lc = 0x0d;
-				}
-				else
-					lc = c;
-				emulator->keyboard->keyPress(lc);
-				emulator->keyboard->keyRelease(lc);
-			}
+			unsigned char c = (unsigned char)buffer[ptr++];
+			if( c==0x0a )
+				c = 0x0d;
+			emulator->queuePasteKey(c);
 		}
 	}
 

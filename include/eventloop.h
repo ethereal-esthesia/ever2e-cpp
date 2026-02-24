@@ -140,6 +140,10 @@ public:
 	void requestExit();
 
 	void dismissHostMenu();
+
+	void queuePasteKey( Uint8 key );
+
+	bool hasPendingPaste() const;
 	
 	void storeState( SaveState& state );
 	
