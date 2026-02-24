@@ -337,6 +337,7 @@ void EventLoop::cycle()
 	if( checkEventTimer>10 ) {
 
 		checkEventTimer = 0;
+		bool suppressHostKeys = (hostMenu==MENU_OFF && !pasteQueue.empty());
 
 		bool doubleDown = false;  // Keep track of whether key events are in a lag state to avoid trailing events
 		
@@ -348,6 +349,8 @@ void EventLoop::cycle()
 			switch( event->type ) {
 
 				case SDL_KEYDOWN:
+					if( suppressHostKeys )
+						break;
 
 /***
 					// Ignore key if it is not being pressed at this moment to avoid key glitches in malfunctioning keyboards
@@ -488,7 +491,7 @@ void EventLoop::cycle()
 							if( event->key.mod & KMOD_SHIFT ) {
 								char* clipText = SDL_GetClipboardText();
 								if( clipText != NULL ) {
-									queuePasteText((const Uint8*)clipText, strlen(clipText));
+									queuePasteText((const Uint8*)clipText, strlen(clipText), true);
 									SDL_free(clipText);
 								}
 							}
@@ -535,6 +538,8 @@ void EventLoop::cycle()
 					break;
 					
 				case SDL_KEYUP: {
+						if( suppressHostKeys )
+							break;
 				
 						// Pass key to keyboard handler
 						if( hostMenu!=MENU_OFF ) {
@@ -584,6 +589,13 @@ void EventLoop::cycle()
 
 		// Recover from missed KEYUP events (e.g. focus transitions) by syncing
 		// tracked down-keys against current host keyboard state.
+		if( suppressHostKeys && !translatedDownKeys.empty() ) {
+			for( std::map<SDL_Keycode, Uint8>::iterator it = translatedDownKeys.begin(); it!=translatedDownKeys.end(); ++it ) {
+				keyboard->keyRelease(it->second);
+				hostKeyboard->keyRelease(it->second);
+			}
+			translatedDownKeys.clear();
+		}
 		for( std::map<SDL_Keycode, Uint8>::iterator it = translatedDownKeys.begin(); it!=translatedDownKeys.end(); ) {
 			if( !manager->isPressed(it->first) ) {
 				keyboard->keyRelease(it->second);
@@ -597,23 +609,27 @@ void EventLoop::cycle()
 		// Check for passive key presses before continuing cycle (apple keys, reset key)
 		if( !idleState && hostMenu==MENU_OFF ) {
 		
-			// Check for palette shifting (color knob emulation)
-			if( monitor->getMonitorType() == COLOR_MONITOR ) {
-				if( manager->isPressed(SDLK_F5) && manager->isPressed(SDLK_F6) ) {
-					hue = defaultHue;
-					monitor->setHue(hue>>HUE_FIX_POSITION);
+			// Suppress regular host keys during scripted paste, but keep control state
+			// active so Ctrl+Reset still works as an emergency interrupt path.
+			if( !suppressHostKeys ) {
+				// Check for palette shifting (color knob emulation)
+				if( monitor->getMonitorType() == COLOR_MONITOR ) {
+					if( manager->isPressed(SDLK_F5) && manager->isPressed(SDLK_F6) ) {
+						hue = defaultHue;
+						monitor->setHue(hue>>HUE_FIX_POSITION);
+					}
+					else if( manager->isPressed(SDLK_F5) && hue>defaultHue-(0x0100<<HUE_FIX_POSITION) )
+						monitor->setHue((--hue)>>HUE_FIX_POSITION);
+					else if( manager->isPressed(SDLK_F6) && hue<defaultHue+(0x0100<<HUE_FIX_POSITION) )
+						monitor->setHue((++hue)>>HUE_FIX_POSITION);
 				}
-				else if( manager->isPressed(SDLK_F5) && hue>defaultHue-(0x0100<<HUE_FIX_POSITION) )
-					monitor->setHue((--hue)>>HUE_FIX_POSITION);
-				else if( manager->isPressed(SDLK_F6) && hue<defaultHue+(0x0100<<HUE_FIX_POSITION) )
-					monitor->setHue((++hue)>>HUE_FIX_POSITION);
-			}
 
-			// Check for simultaneous F3+F4 (CPU speed - and +)
-			if( manager->isPressed(SDLK_F3) && manager->isPressed(SDLK_F4) ) {
-				cpuMult = 1;
-				cpu->setMultiplier(cpuMult);
-			}	
+				// Check for simultaneous F3+F4 (CPU speed - and +)
+				if( manager->isPressed(SDLK_F3) && manager->isPressed(SDLK_F4) ) {
+					cpuMult = 1;
+					cpu->setMultiplier(cpuMult);
+				}
+			}
 			
 			// Check for passive key presses: open apple, closed apple, reset, control, shift
 			CtrlKey2e ctrlKey = manager->isPressed(keyConvert->getOpenAppleKey()) ? OPEN_APPLE : NO_CTRL_KEY;
@@ -627,14 +643,16 @@ void EventLoop::cycle()
 			
 		}
 
-		// Inject queued paste text one key at a time only when keyboard latch is clear.
-		if( hostMenu==MENU_OFF && !pasteQueue.empty() && !(memory->getMem(0xc000)&0x80) ) {
-			Uint8 pasteKey = pasteQueue.front();
-			pasteQueue.pop_front();
-			keyboard->keyPress(pasteKey);
-			keyboard->keyRelease(pasteKey);
-		}
+	}
 
+	// Inject queued paste text one key at a time only when keyboard latch is clear.
+	// This runs every cycle (not just event-poll windows) so large scripted pastes
+	// are not bottlenecked by host event polling cadence.
+	if( hostMenu==MENU_OFF && !pasteQueue.empty() && !(memory->getMem(0xc000)&0x80) ) {
+		Uint8 pasteKey = pasteQueue.front();
+		pasteQueue.pop_front();
+		keyboard->keyPress(pasteKey);
+		keyboard->keyRelease(pasteKey);
 	}
 
 	// Check to see if emulation is in idle mode and cancel updates as needed
@@ -722,12 +740,33 @@ void EventLoop::setUnthrottled( bool enable )
 	unthrottled = enable;
 }
 
-void EventLoop::queuePasteText( const Uint8* text, size_t size )
+void EventLoop::queuePasteText( const Uint8* text, size_t size, bool fromClipboard )
 {
 	if( text==NULL || size==0 )
 		return;
-	for( size_t i = 0; i<size; i++ ) {
+
+	// Clipboard text often carries an extra terminal newline from host editors.
+	// Keep one intentional trailing newline, but drop one duplicate trailer.
+	size_t effectiveSize = size;
+	if( fromClipboard && effectiveSize>=2 ) {
+		if( text[effectiveSize-2]==0x0d && text[effectiveSize-1]==0x0a && effectiveSize>=4 &&
+				text[effectiveSize-4]==0x0d && text[effectiveSize-3]==0x0a )
+			effectiveSize -= 2;
+		else if( text[effectiveSize-1]==0x0a && text[effectiveSize-2]==0x0a )
+			effectiveSize -= 1;
+		else if( text[effectiveSize-1]==0x0d && text[effectiveSize-2]==0x0d )
+			effectiveSize -= 1;
+	}
+
+	for( size_t i = 0; i<effectiveSize; i++ ) {
 		Uint8 c = text[i];
+		if( c==0x0d ) {
+			// Treat CRLF as a single return.
+			if( i+1<effectiveSize && text[i+1]==0x0a )
+				i++;
+			pasteQueue.push_back(0x0d);
+			continue;
+		}
 		if( c==0x0a )
 			c = 0x0d;
 		pasteQueue.push_back(c);

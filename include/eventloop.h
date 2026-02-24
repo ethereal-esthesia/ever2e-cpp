@@ -144,7 +144,7 @@ public:
 
 	void setUnthrottled( bool enable );
 
-	void queuePasteText( const Uint8* text, size_t size );
+	void queuePasteText( const Uint8* text, size_t size, bool fromClipboard = false );
 
 	void queuePasteKey( Uint8 key );
 
