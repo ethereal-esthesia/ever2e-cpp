@@ -95,6 +95,19 @@ bool Memory128k::getSwitch( Uint32 state )
 	return (switchState & state) && 1;
 }
 
+Memory128k::SoftSwitchSnapshot Memory128k::captureSoftSwitchState() const
+{
+	SoftSwitchSnapshot snapshot;
+	snapshot.switchState = switchState;
+	return snapshot;
+}
+
+void Memory128k::restoreSoftSwitchState( const SoftSwitchSnapshot& snapshot )
+{
+	switchState = snapshot.switchState;
+	_commitSwitches();
+}
+
 void Memory128k::_setMemoryLayout( const MemoryBlock *layout )
 {
 	int i = 0;
@@ -209,7 +222,7 @@ Uint8 Memory128k::_readIo( Uint16 address )
 			
 		case 0xc012:
 			// Read HRAMRD
-			return keyboard->getKeyboard() & 0x7f | (getSwitch(_RAMRD)<<7);
+			return keyboard->getKeyboard() & 0x7f | (getSwitch(_HRAMRD)<<7);
 			
 		case 0xc013:
 			// Read RAMRD
@@ -328,32 +341,32 @@ Uint8 Memory128k::_readIo( Uint16 address )
 
 		case 0xc058:
 			// Reset AN0
-			resetSwitch(_AN3);
+			resetSwitch(_AN0);
 			return _randRead();
 
 		case 0xc059:
 			// Set AN0
-			setSwitch(_AN3);
+			setSwitch(_AN0);
 			return _randRead();
 
 		case 0xc05a:
 			// Reset AN1
-			resetSwitch(_AN3);
+			resetSwitch(_AN1);
 			return _randRead();
 
 		case 0xc05b:
 			// Set AN1
-			setSwitch(_AN3);
+			setSwitch(_AN1);
 			return _randRead();
 
 		case 0xc05c:
 			// Reset AN2
-			resetSwitch(_AN3);
+			resetSwitch(_AN2);
 			return _randRead();
 
 		case 0xc05d:
 			// Set AN2
-			setSwitch(_AN3);
+			setSwitch(_AN2);
 			return _randRead();
 
 		case 0xc05e:
@@ -382,14 +395,10 @@ Uint8 Memory128k::_readIo( Uint16 address )
 
 		case 0xc063:
 		case 0xc06b:
-			// PB2
-			// Bit 7 is used to indicate if PB2 game button is pressed
+			// SHIFT / PB2
+			// Bit 7 is used to indicate if shift or PB2 game button is pressed
 			// Bits 0-6 are undefined
-			/// return  joystick->getButton(1)) << 7 );
-#ifdef _MEMORY_TEST_OUTPUT	
-goto warningStub; ///
-#endif
-			break;
+			return _randRead7bit() | ( (keyboard->getShiftKey()) << 7 ); /// || joystick->getButton(2)
 				
 		case 0xc080:
 			// Reset BANK1
@@ -486,7 +495,7 @@ goto warningStub; ///
 			
 		case 0xc088:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Set HRAMRD
 			setSwitch(_HRAMRD);
 			// Reset PREWRITE
@@ -497,7 +506,7 @@ goto warningStub; ///
 			
 		case 0xc089:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Reset HRAMRD
 			resetSwitch(_HRAMRD);
 			// Set HRAMWRT if PREWRITE is set / otherwise set PREWRITE
@@ -509,7 +518,7 @@ goto warningStub; ///
 			
 		case 0xc08a:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Reset HRAMRD
 			resetSwitch(_HRAMRD);
 			// Reset PREWRITE
@@ -520,7 +529,7 @@ goto warningStub; ///
 			
 		case 0xc08b:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Set HRAMRD
 			setSwitch(_HRAMRD);
 			// Set HRAMWRT if PREWRITE is set / otherwise set PREWRITE
@@ -532,7 +541,7 @@ goto warningStub; ///
 			
 		case 0xc08c:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Set HRAMRD
 			setSwitch(_HRAMRD);
 			// Reset PREWRITE
@@ -543,7 +552,7 @@ goto warningStub; ///
 			
 		case 0xc08d:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Reset HRAMRD
 			resetSwitch(_HRAMRD);
 			// Set HRAMWRT if PREWRITE is set / otherwise set PREWRITE
@@ -555,7 +564,7 @@ goto warningStub; ///
 			
 		case 0xc08e:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Reset HRAMRD
 			resetSwitch(_HRAMRD);
 			// Reset PREWRITE
@@ -566,7 +575,7 @@ goto warningStub; ///
 
 		case 0xc08f:
 			// Set BANK1
-			resetSwitch(_BANK1);
+			setSwitch(_BANK1);
 			// Set HRAMRD
 			setSwitch(_HRAMRD);
 			// Set HRAMWRT if PREWRITE is set / otherwise set PREWRITE
@@ -760,7 +769,7 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 				return slotCard[slot]->getMem256b(address&0x00ff);
 			else {
 #ifdef _MEMORY_TEST_OUTPUT	
-				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << " [ " << cpu->getOpcodeString() << " ] \n";
+				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
 #endif	
 				return _randRead();
 				return 0;
@@ -783,7 +792,7 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 				return slotCard[slot]->getMem256b(address&0x00ff);
 			else {
 #ifdef _MEMORY_TEST_OUTPUT	
-				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << " [ " << cpu->getOpcodeString() << " ] \n";
+				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
 #endif	
 				return _randRead();
 			}
@@ -1047,7 +1056,7 @@ void Memory128k::store( SaveState &state )
 	state.writeCString((char*) rom16k, sizeof(rom16k));
 	state.write16(toggleMod);
 	state.write16(accessCount);
-	state.write16(switchState);
+	state.write32(captureSoftSwitchState().switchState);
 
 ///	Uint8 *slotRom256b[8];	// Pointer to 256 byte rom for slots 1-7
 ///	Uint8 *expRom2k[8];		// Pointer to 2k expansion rom for slots 1-7
@@ -1064,7 +1073,9 @@ int Memory128k::restore( SaveState &state )
 	state.readCString((char*) rom16k, sizeof(rom16k));
 	toggleMod = state.read16();
 	accessCount = state.read16();
-	switchState = (Uint32) state.read16();
+	SoftSwitchSnapshot snapshot;
+	snapshot.switchState = state.read32();
+	restoreSoftSwitchState(snapshot);
 
 ///	Uint8 *slotRom256b[8];	// Pointer to 256 byte rom for slots 1-7
 ///	Uint8 *expRom2k[8];		// Pointer to 2k expansion rom for slots 1-7

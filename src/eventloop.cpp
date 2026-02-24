@@ -80,6 +80,13 @@ void EventLoop::_toggleHostInterface( HostMenuType type )
 	}
 	else if( hostMenu==MENU_OFF ) {
 		storeState(stateBuffer);
+		keyboard->store(keyboardStateBuffer);
+		for( std::map<SDL_Keycode, Uint8>::iterator it = translatedDownKeys.begin(); it!=translatedDownKeys.end(); it++ ) {
+			keyboard->keyRelease(it->second);
+			hostKeyboard->keyRelease(it->second);
+		}
+		translatedDownKeys.clear();
+		keyboard->setCtrlKeyState(NO_CTRL_KEY);
 		// Remove pause state as needed
 		if( idleState )
 			monitor->setIdleState(false);
@@ -102,6 +109,8 @@ void EventLoop::_toggleHostInterface( HostMenuType type )
 			
 		case MENU_OFF:
 			restoreState(stateBuffer);
+			assert( keyboard->restore(keyboardStateBuffer)==0 );
+			keyboardStateBuffer.clear();
 			// Restore pause status
 			if( idleState ) {
 				monitor->setIdleState(true);
@@ -499,6 +508,10 @@ void EventLoop::cycle()
 								// Pass key to keyboard handler
 								Uint8 key;
 								if( keyConvert->translate(event->key.key, event->key.mod, key) ) {
+									if( hostMenu!=MENU_OFF ) {
+										hostKeyboard->keyPress(key);
+										break;
+									}
 									// Track physical key-down state so repeated KEYDOWN events
 									// do not inflate key-down count and cause stuck keys.
 									if( translatedDownKeys.find(event->key.key)==translatedDownKeys.end() ) {
@@ -524,6 +537,12 @@ void EventLoop::cycle()
 				case SDL_KEYUP: {
 				
 						// Pass key to keyboard handler
+						if( hostMenu!=MENU_OFF ) {
+							Uint8 key;
+							if( keyConvert->translate(event->key.key, event->key.mod, key) )
+								hostKeyboard->keyRelease(key);
+							break;
+						}
 						std::map<SDL_Keycode, Uint8>::iterator mapped = translatedDownKeys.find(event->key.key);
 						if( mapped!=translatedDownKeys.end() ) {
 							Uint8 key = mapped->second;
@@ -576,7 +595,7 @@ void EventLoop::cycle()
 		}
 
 		// Check for passive key presses before continuing cycle (apple keys, reset key)
-		if( !idleState ) {
+		if( !idleState && hostMenu==MENU_OFF ) {
 		
 			// Check for palette shifting (color knob emulation)
 			if( monitor->getMonitorType() == COLOR_MONITOR ) {
@@ -656,10 +675,11 @@ void EventLoop::cycle()
 
 		// Cycle hardware
 
-		keyboard->cycle();
-		if( !idleCycle ) {
-			cpu->cycle();
-		}
+			if( hostMenu==MENU_OFF )
+				keyboard->cycle();
+			if( !idleCycle ) {
+				cpu->cycle();
+			}
 		monitor->cycle();
 		memory->cycle();
 		speaker->cycle(cycleTimeNanoseconds);

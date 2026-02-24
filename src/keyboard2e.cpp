@@ -182,3 +182,33 @@ bool Keyboard2e::getClosedApple()
 {
 	return ctrlKeyState&CLOSED_APPLE;
 }
+
+bool Keyboard2e::getShiftKey()
+{
+	return ctrlKeyState&SHIFT_KEY;
+}
+
+void Keyboard2e::store( SaveState& state )
+{
+	state.write8(keyCode);
+	state.writeBool(longDelay);
+	state.write32((Uint32)delayCounter);
+	state.writeBool(keyPressed);
+	state.write32((Uint32)keyDown);
+	state.write8(overflowByteLast);
+	state.write32((Uint32)resetActive);
+	state.write16((Uint16)ctrlKeyState);
+}
+
+int Keyboard2e::restore( SaveState& state )
+{
+	keyCode = state.read8();
+	longDelay = state.readBool();
+	delayCounter = (int) state.read32();
+	keyPressed = state.readBool();
+	keyDown = (int) state.read32();
+	overflowByteLast = state.read8();
+	resetActive = (int) state.read32();
+	ctrlKeyState = (CtrlKey2e) state.read16();
+	return 0;
+}

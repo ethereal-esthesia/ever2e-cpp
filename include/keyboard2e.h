@@ -33,6 +33,7 @@
 
 #include "SDL.h"
 #include "mon560x192.h"
+#include "savestate.h"
 
 
 enum CtrlKey2e{ NO_CTRL_KEY = 0x00, OPEN_APPLE = 0x01, CLOSED_APPLE = 0x02, RESET_KEY = 0x04, CTRL_KEY = 0x08, SHIFT_KEY = 0x10 };
@@ -73,7 +74,7 @@ public:
 	void keyRelease( Uint8 key );
 	
 	void setCtrlKeyState( CtrlKey2e keys );
-		// "keys" should be any or'd combination of OPEN_APPLE | CLOSED_APPLE | RESET_KEY
+		// "keys" should be any or'd combination of OPEN_APPLE | CLOSED_APPLE | RESET_KEY | CTRL_KEY | SHIFT_KEY
 
 	void cycle();
 
@@ -100,6 +101,15 @@ public:
 		// Read from address $C062 (CLSAPPLE)
 		// Bit 7 is used to indicate if closed apple, or PB1 game button is pressed (implemented in joystick class)
 		// Bits 0-6 are undefined
+
+	bool getShiftKey();
+		// Read from address $C063 (SHIFT / PB2)
+		// Bit 7 is used to indicate if shift, or PB2 game button is pressed (implemented in joystick class)
+		// Bits 0-6 are undefined
+
+	void store( SaveState& state );
+
+	int restore( SaveState& state );
 		
 };
 

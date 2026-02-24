@@ -108,6 +108,10 @@ class Memory128k
 	void _commitSwitches();
 	
 public:
+	struct SoftSwitchSnapshot
+	{
+		Uint32 switchState;
+	};
 
 	Memory128k();
 
@@ -150,6 +154,10 @@ public:
 	void resetSwitch( Uint32 state );
 
 	bool getSwitch( Uint32 state );
+
+	SoftSwitchSnapshot captureSoftSwitchState() const;
+
+	void restoreSoftSwitchState( const SoftSwitchSnapshot& snapshot );
 
 	void putPeripheral( class Cpu65c02* cpu, class Monitor560x192* monitor, class Speaker1bit* speaker, class Keyboard2e* keyboard );
 
