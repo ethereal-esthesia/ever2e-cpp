@@ -32,6 +32,7 @@
 
 
 #include "SDL.h"
+#include <deque>
 #include "mon560x192.h"
 #include "savestate.h"
 
@@ -57,8 +58,11 @@ class Keyboard2e
 	bool longDelay;            // Indicates first keypress delay (.53 to .80 sec long), subsequent key repeats are .07 sec)
 	int delayCounter;          // Keeps track of number of accesses to timing register (2 for long delay, only 1 for short delay)
 	bool keyPressed;           // Key in waiting for processing
+	bool keyConsumed;          // True after a KEYBOARD ($C000) read consumes current strobe
+	Uint32 consumeCounter;     // Number of KEYBOARD ($C000) reads observed
 	int keyDown;               // Key currently down
 	Uint8 overflowByteLast;    // Last timing register access - used to identify state changes
+	std::deque<Uint8> queuedTypedKeys;
 
 	int resetActive;           // Present state of reset key when not accompanied by other needed keys to perform an interrupt
 	CtrlKey2e ctrlKeyState;    // Present state of passive keys
@@ -72,6 +76,9 @@ public:
 	void keyPress( Uint8 key );
 	
 	void keyRelease( Uint8 key );
+
+	void queueTypedKey( Uint8 key );
+		// Queue a synthetic typed key (used by scripted paste), without physical key-down state.
 	
 	void setCtrlKeyState( CtrlKey2e keys );
 		// "keys" should be any or'd combination of OPEN_APPLE | CLOSED_APPLE | RESET_KEY | CTRL_KEY | SHIFT_KEY
@@ -82,6 +89,15 @@ public:
 		// KEYBOARD read from address $C000
 		// Bit 7 indicates key was pressed
 		// Bit 0-6 indicate ASCII code
+
+	void consumeKeyboard();
+		// Mark current key strobe consumed by a KEYBOARD ($C000) read.
+
+	bool hasPendingKey() const;
+		// True if keyboard strobe is currently active.
+
+	Uint32 getConsumeCounter() const;
+		// Number of KEYBOARD ($C000) reads observed.
 
 	void putStrobe();
 		// A write to $C010 (STROBE) will clear the high bit in KEYBOARD

@@ -245,6 +245,7 @@ EventLoop::EventLoop()
 	pasteWasActive = false;
 	pasteClearPending = false;
 	pasteClearDelayCycles = 0;
+	pasteConsumeCounterSeen = 0;
 
 #ifdef _BENCHMARK_
 	// Time CPU
@@ -659,11 +660,10 @@ void EventLoop::cycle()
 			pasteWasActive = true;
 			pasteClearPending = false;
 			pasteClearDelayCycles = 0;
-			if( !(memory->getMem(0xc000)&0x80) ) {
+			if( !keyboard->hasPendingKey() ) {
 				Uint8 pasteKey = pasteQueue.front();
 				pasteQueue.pop_front();
-				keyboard->keyPress(pasteKey);
-				keyboard->keyRelease(pasteKey);
+				keyboard->queueTypedKey(pasteKey);
 			}
 		}
 		else if( pasteWasActive ) {
@@ -674,11 +674,10 @@ void EventLoop::cycle()
 		}
 	}
 	if( hostMenu==MENU_OFF && pasteClearPending ) {
-		Uint8 c000 = memory->getMem(0xc000);
 		if( pasteClearDelayCycles>0 ) {
 			pasteClearDelayCycles--;
 		}
-		else if( c000&0x80 ) {
+		else if( keyboard->hasPendingKey() ) {
 			keyboard->putStrobe();
 		}
 		else
@@ -851,11 +850,13 @@ void EventLoop::queuePasteText( const Uint8* text, size_t size, bool fromClipboa
 	}
 	for( size_t i = 0; i<normalized.size(); i++ )
 		pasteQueue.push_back(normalized[i]);
+	pasteConsumeCounterSeen = keyboard->getConsumeCounter();
 }
 
 void EventLoop::queuePasteKey( Uint8 key )
 {
 	pasteQueue.push_back(key);
+	pasteConsumeCounterSeen = keyboard->getConsumeCounter();
 }
 
 bool EventLoop::hasPendingPaste() const

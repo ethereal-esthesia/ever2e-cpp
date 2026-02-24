@@ -206,6 +206,7 @@ Uint8 Memory128k::_readIo( Uint16 address )
 			// KEYBOARD
 			// Bit 7 indicates key was pressed
 			// Bit 0-6 indicate ASCII code
+			keyboard->consumeKeyboard();
 			return keyboard->getKeyboard();
 
 		case 0xc010:
