@@ -186,10 +186,7 @@ void EventLoop::_helpMenuCycle()
 	cpu->putText(1, 22, 38, 'Q', Cpu65c02::FLASH);      // Down arrow
 
 	const int drawY = yOffset+2+((maxStartPos>0)?((18*startPos)/maxStartPos):0);
-	static int lastDrawYDebug = -1;
-	const bool debugDraw = drawY != lastDrawYDebug;
-	lastDrawYDebug = drawY;
-	cpu->putText(1, drawY, 38, '3', Cpu65c02::FLASH, debugDraw);  // Position indicator
+	cpu->putText(1, drawY, 38, '3', Cpu65c02::FLASH);  // Position indicator
 	
 }
 
