@@ -126,13 +126,15 @@ void EventLoop::_menuCycle()
 
 void EventLoop::_helpMenuCycle()
 {
+	const int hostHelpCount = (int) (sizeof(HOST_HELP) / sizeof(HOST_HELP[0]));
+	const int maxStartPos = hostHelpCount > 21 ? hostHelpCount-21 : 0;
 
 	Uint8 key = 0x00;
 	if( hostKeyboard->popKey(key) ) {
 
 		if( key == KEY_UP && startPos>0 )
 			startPos--;
-		else if( key == KEY_DOWN && startPos<int(sizeof(HOST_HELP)/sizeof(HOST_HELP[0])-21) )
+		else if( key == KEY_DOWN && startPos<maxStartPos )
 			startPos++;
 		else if( key == KEY_ESCAPE ) {
 			_toggleHostInterface(MENU_OFF);
@@ -140,6 +142,10 @@ void EventLoop::_helpMenuCycle()
 		}
 			
 	}
+	if( startPos<0 )
+		startPos = 0;
+	else if( startPos>maxStartPos )
+		startPos = maxStartPos;
 	
 	lastStartPos = startPos;
 	
@@ -179,7 +185,11 @@ void EventLoop::_helpMenuCycle()
 	cpu->putText(1, 2, 38, 'R', Cpu65c02::FLASH);       // Up arrow
 	cpu->putText(1, 22, 38, 'Q', Cpu65c02::FLASH);      // Down arrow
 
-	cpu->putText(1, yOffset+2+(18*startPos)/(sizeof(HOST_HELP)/sizeof(HOST_HELP[0])-21), 38, '3', Cpu65c02::FLASH);  // Position indicator
+	const int drawY = yOffset+2+((maxStartPos>0)?((18*startPos)/maxStartPos):0);
+	static int lastDrawYDebug = -1;
+	const bool debugDraw = drawY != lastDrawYDebug;
+	lastDrawYDebug = drawY;
+	cpu->putText(1, drawY, 38, '3', Cpu65c02::FLASH, debugDraw);  // Position indicator
 	
 }
 

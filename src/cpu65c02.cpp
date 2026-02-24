@@ -1313,7 +1313,7 @@ int Cpu65c02::_putText80( int page, int row, int col, const string &str, TextTyp
 	int len = str.length();
 	int c = 0;
 	for( int i = 0; i<len; i++ )
-		c += _putText40(page, row, col+c, str[i], type);
+		c += _putText80(page, row, col+c, str[i], type);
 	return c;
 }
 
@@ -1712,7 +1712,7 @@ int Cpu65c02::putText( int page, int row, int col, char c, TextType type, bool d
 		          << " char=0x" << std::hex << (int)(unsigned char)c << std::dec
 		          << " type=" << (int)type << std::endl;
 	}
-	if( memory->getMem(0xc01f) )       // 80-col mode is on
+	if( memory->getMem(0xc01f) & 0x80 )       // 80-col mode is on
 		return _putText80(page, row, col, c, type);
 	else
 		return _putText40(page, row, col, c, type);
@@ -1728,7 +1728,7 @@ int Cpu65c02::putText( int page, int row, int col, const string &str, TextType t
 		          << " type=" << (int)type
 		          << " text=\"" << str << "\"" << std::endl;
 	}
-	if( memory->getMem(0xc01f) )       // 80-col mode is on
+	if( memory->getMem(0xc01f) & 0x80 )       // 80-col mode is on
 		return _putText80(page, row, col, str, type);
 	else
 		return _putText40(page, row, col, str, type);
