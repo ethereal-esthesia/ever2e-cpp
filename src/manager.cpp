@@ -108,6 +108,13 @@ void EventManager::resizeDisplay( int xSize, int ySize, int bpp, bool fullScreen
 	}
 	if( displaySurfaceClass != NULL )
 		displaySurfaceClass->setSurface(displaySurface);
+
+	// Clear the full host window surface so regions outside the emulated raster
+	// start from a known black background.
+	Uint32 blackPixel = SDL_MapSurfaceRGB(displaySurface, 0, 0, 0);
+	SDL_FillSurfaceRect(displaySurface, NULL, blackPixel);
+	SDL_UpdateWindowSurface(window);
+
 	if( fullScreen ) 
 		hideCursor();
 	else

@@ -132,7 +132,7 @@ void EventLoop::_helpMenuCycle()
 
 		if( key == KEY_UP && startPos>0 )
 			startPos--;
-		else if( key == KEY_DOWN && startPos<int(sizeof(HOST_HELP)/sizeof(string*)-21) )
+		else if( key == KEY_DOWN && startPos<int(sizeof(HOST_HELP)/sizeof(HOST_HELP[0])-21) )
 			startPos++;
 		else if( key == KEY_ESCAPE ) {
 			_toggleHostInterface(MENU_OFF);
@@ -179,7 +179,7 @@ void EventLoop::_helpMenuCycle()
 	cpu->putText(1, 2, 38, 'R', Cpu65c02::FLASH);       // Up arrow
 	cpu->putText(1, 22, 38, 'Q', Cpu65c02::FLASH);      // Down arrow
 
-	cpu->putText(1, yOffset+2+(18*startPos)/(sizeof(HOST_HELP)/sizeof(string*)-21), 38, '3', Cpu65c02::FLASH);  // Position indicator
+	cpu->putText(1, yOffset+2+(18*startPos)/(sizeof(HOST_HELP)/sizeof(HOST_HELP[0])-21), 38, '3', Cpu65c02::FLASH);  // Position indicator
 	
 }
 
