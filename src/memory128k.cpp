@@ -80,6 +80,7 @@ void Memory128k::coldReset()
 
 	accessCount = 0;
 	toggleMod = 0;
+	dumpOnDestroy = false;
 	
 }
 
@@ -1011,7 +1012,8 @@ void Memory128k::putPeripheral( Cpu65c02* cpu, Monitor560x192* monitor, Speaker1
 Memory128k::~Memory128k()
 {
 #ifdef _MEMORY_TEST_OUTPUT	
-	dumpMem();
+	if( dumpOnDestroy )
+		dumpMem();
 #endif
 }
 
@@ -1089,4 +1091,9 @@ int Memory128k::restore( SaveState &state )
 
 	return 0;
 	
+}
+
+void Memory128k::setDumpOnDestroy( bool enabled )
+{
+	dumpOnDestroy = enabled;
 }

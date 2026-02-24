@@ -70,6 +70,7 @@ class Memory128k
 	unsigned int toggleMod;
 
 	int accessCount;
+	bool dumpOnDestroy;
 
 	void _setMemoryLayout( const MemoryBlock *layout );
 
@@ -201,6 +202,8 @@ public:
 		// Upon finding a read error, all state values are restored to their defaults
 		
 	void dumpMem();
+
+	void setDumpOnDestroy( bool enabled );
 	
 };
 	

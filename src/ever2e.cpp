@@ -24,12 +24,14 @@
  *************************************************************************/
 
 #include <fstream>
+#include <string>
 #include "eventloop.h"
 
 
 using namespace std;
 
-char* InputFileName;
+const char* InputFileName = NULL;
+string GuestCoreDumpFile;
 
 bool hostCycle( EventLoop *emulator )
 {
@@ -84,19 +86,68 @@ cout << (int)emulator->memory->getMem(0xc000) << " != " << (lc|0x80) << endl;
 	
 }
 
+bool writeGuestCoreDump( EventLoop* emulator, const string& outPath )
+{
+	ofstream out(outPath.c_str(), ios::out | ios::trunc);
+	if( !out.is_open() ) {
+		cerr << "Unable to write guest core dump file: \"" << outPath << "\"\n";
+		return false;
+	}
+	streambuf* oldBuf = cout.rdbuf(out.rdbuf());
+	emulator->memory->dumpMem();
+	cout.rdbuf(oldBuf);
+	return true;
+}
+
 int main( int args, char** argv )
 {
 
+	for( int i = 1; i<args; i++ ) {
+		string arg = argv[i];
+		if( arg == "--help" ) {
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>]\n";
+			return 0;
+		}
+		if( arg == "--paste-file" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --paste-file\n";
+				return 1;
+			}
+			InputFileName = argv[++i];
+			continue;
+		}
+		if( arg.find("--paste-file=")==0 ) {
+			InputFileName = argv[i] + (sizeof("--paste-file=")-1);
+			continue;
+		}
+		if( arg == "--guest-core-dump" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --guest-core-dump\n";
+				return 1;
+			}
+			GuestCoreDumpFile = argv[++i];
+			continue;
+		}
+		if( arg.find("--guest-core-dump=")==0 ) {
+			GuestCoreDumpFile = arg.substr(sizeof("--guest-core-dump=")-1);
+			continue;
+		}
+		cerr << "Unrecognized argument: " << arg << "\n";
+		return 1;
+	}
+
 	EventLoop emulator;
 
-	if( args>1 ) {
-		InputFileName = argv[1];
+	if( InputFileName!=NULL ) {
 		emulator.incorporate(hostCycle, true);
 	}
 
 	do
 		emulator.cycle();
 	while( !emulator.getExitStatus() );
+
+	if( !GuestCoreDumpFile.empty() && !writeGuestCoreDump(&emulator, GuestCoreDumpFile) )
+		return 1;
 	
 	return 0;
 
