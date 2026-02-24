@@ -706,6 +706,17 @@ bool EventLoop::getExitStatus()
 	return exitStatus;
 }
 
+void EventLoop::requestExit()
+{
+	exitStatus = true;
+}
+
+void EventLoop::dismissHostMenu()
+{
+	if( hostMenu!=MENU_OFF )
+		_toggleHostInterface(MENU_OFF);
+}
+
 void EventLoop::storeState( SaveState& state )
 {
 	cpu->store(state);

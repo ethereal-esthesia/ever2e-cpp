@@ -33,6 +33,8 @@ using namespace std;
 const char* InputFileName = NULL;
 string GuestCoreDumpFile;
 bool PrintTextAtExit = false;
+long long CpuStepLimit = -1;
+long long CpuStepCount = 0;
 
 char transliterateText( Uint8 ascii )
 {
@@ -64,11 +66,9 @@ bool hostCycle( EventLoop *emulator )
 	static ifstream::pos_type size = -1;
 	static int ptr = 0;
 	static char* buffer = NULL;
-	static char lc = 0;
-	static bool firstChar = true;
-	
-	while( ptr<size && (buffer[ptr]<0x20 || buffer[ptr]>=0x80) && buffer[ptr]!=0x0d )
-		ptr++;
+	static Uint8 lc = 0;
+	static bool waitForPrompt = true;
+	static int promptCheckDivider = 0;
 
 	//	if( ptr == size ) {
 	if( size == -1 ) {
@@ -89,20 +89,69 @@ bool hostCycle( EventLoop *emulator )
 		file.read(buffer, size);
 		file.close();
 		ptr = 0;
+		lc = emulator->memory->getMem(0xc000) & 0x7f;
+		waitForPrompt = true;
+		promptCheckDivider = 0;
 	}
-	else if( ptr < size ) {
-	
-		if( (int) emulator->memory->getMem(0xc000) != (lc|0x80) ) {
-cout << (int)emulator->memory->getMem(0xc000) << " != " << (lc|0x80) << endl;
-			lc = buffer[ptr];
-			emulator->keyboard->keyPress(lc);
-			emulator->keyboard->keyRelease(lc);
-			if( !firstChar )
-				ptr++;
-			else
-				firstChar = false;
+	else if( ptr<size ) {
+		if( waitForPrompt ) {
+			// Wait until BASIC/monitor prompt is visible so the injected loader starts at a stable command line.
+			if( (++promptCheckDivider & 0x7ff) == 0 ) {
+				bool promptSeen = false;
+				for( int y = 0; y<24 && !promptSeen; y++ ) {
+					for( int x = 0; x<40; x++ ) {
+						Uint16 addr = Monitor560x192::getAddressLo40(1, y, x);
+						Uint8 c = emulator->memory->getMem(addr) & 0x7f;
+						if( c==']' || c=='*' ) {
+							promptSeen = true;
+							break;
+						}
+					}
+				}
+				if( promptSeen )
+					waitForPrompt = false;
+			}
+			if( waitForPrompt ) {
+				if( CpuStepLimit>=0 ) {
+					CpuStepCount++;
+					if( CpuStepCount>=CpuStepLimit )
+						emulator->requestExit();
+				}
+				return false;
+			}
 		}
 
+		while( ptr<size ) {
+			unsigned char c = (unsigned char)buffer[ptr];
+			if( c==0x0d || c==0x0a || (c>=0x20 && c<0x80) )
+				break;
+			ptr++;
+		}
+		if( ptr<size ) {
+			if( (int) emulator->memory->getMem(0xc000) != (lc|0x80) ) {
+				unsigned char c = (unsigned char)buffer[ptr++];
+				if( c==0x0d ) {
+					lc = 0x0d;
+					// Normalize CRLF to one Apple II CR
+					if( ptr<size && (unsigned char)buffer[ptr]==0x0a )
+						ptr++;
+				}
+				else if( c==0x0a ) {
+					// Normalize LF-only text files into Apple II CR
+					lc = 0x0d;
+				}
+				else
+					lc = c;
+				emulator->keyboard->keyPress(lc);
+				emulator->keyboard->keyRelease(lc);
+			}
+		}
+	}
+
+	if( CpuStepLimit>=0 ) {
+		CpuStepCount++;
+		if( CpuStepCount>=CpuStepLimit )
+			emulator->requestExit();
 	}
 ///	else
 ///		emulator->setKeySupress(false);
@@ -130,7 +179,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--steps <count>]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -161,13 +210,35 @@ int main( int args, char** argv )
 			PrintTextAtExit = true;
 			continue;
 		}
+		if( arg == "--steps" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --steps\n";
+				return 1;
+			}
+			CpuStepLimit = strtoll(argv[++i], NULL, 10);
+			if( CpuStepLimit<0 ) {
+				cerr << "Invalid value for --steps\n";
+				return 1;
+			}
+			continue;
+		}
+		if( arg.find("--steps=")==0 ) {
+			CpuStepLimit = strtoll(arg.c_str() + (sizeof("--steps=")-1), NULL, 10);
+			if( CpuStepLimit<0 ) {
+				cerr << "Invalid value for --steps\n";
+				return 1;
+			}
+			continue;
+		}
 		cerr << "Unrecognized argument: " << arg << "\n";
 		return 1;
 	}
 
 	EventLoop emulator;
 
-	if( InputFileName!=NULL ) {
+	if( InputFileName!=NULL || CpuStepLimit>=0 ) {
+		// Automated runs should start from the emulation screen, not the host help menu.
+		emulator.dismissHostMenu();
 		emulator.incorporate(hostCycle, true);
 	}
 

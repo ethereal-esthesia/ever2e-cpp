@@ -136,6 +136,10 @@ public:
 	void incorporate( bool (*func)( EventLoop* ), bool perCycle = false );
 	
 	bool getExitStatus();
+
+	void requestExit();
+
+	void dismissHostMenu();
 	
 	void storeState( SaveState& state );
 	
