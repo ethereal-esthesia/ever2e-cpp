@@ -455,7 +455,7 @@ void Cpu65c02::_cycle()
 		
 		case _IND_X:
 			// (Indirect, X)
-			// ($00:[ADL+X]) – carries discarded for low and high addr bytes
+			// ($00:[ADL+X]) - carries discarded for low and high addr bytes
 			// +1 byte
 			operandPtr = Uint8( _getMem8(operandCounter) + _X );
 			operandPtr = _getMemZeroPage16(operandPtr);
@@ -1703,16 +1703,31 @@ bool Cpu65c02::isPlayingSound()
 	return soundDuration!=0;
 }
 
-int Cpu65c02::putText( int page, int row, int col, char c, TextType type )
+int Cpu65c02::putText( int page, int row, int col, char c, TextType type, bool debug )
 {
+	if( debug ) {
+		std::cout << "putText char page=" << page
+		          << " row=" << row
+		          << " col=" << col
+		          << " char=0x" << std::hex << (int)(unsigned char)c << std::dec
+		          << " type=" << (int)type << std::endl;
+	}
 	if( memory->getMem(0xc01f) )       // 80-col mode is on
 		return _putText80(page, row, col, c, type);
 	else
 		return _putText40(page, row, col, c, type);
 }
 	
-int Cpu65c02::putText( int page, int row, int col, const string &str, TextType type )
+int Cpu65c02::putText( int page, int row, int col, const string &str, TextType type, bool debug )
 {
+	if( debug ) {
+		std::cout << "putText str page=" << page
+		          << " row=" << row
+		          << " col=" << col
+		          << " len=" << str.length()
+		          << " type=" << (int)type
+		          << " text=\"" << str << "\"" << std::endl;
+	}
 	if( memory->getMem(0xc01f) )       // 80-col mode is on
 		return _putText80(page, row, col, str, type);
 	else
