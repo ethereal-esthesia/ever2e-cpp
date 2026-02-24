@@ -25,6 +25,10 @@
 
 #include <fstream>
 #include <string>
+#include <cstdlib>
+#include <vector>
+#include <sstream>
+#include <iomanip>
 #include "eventloop.h"
 
 
@@ -35,6 +39,37 @@ string GuestCoreDumpFile;
 bool PrintTextAtExit = false;
 long long CpuStepLimit = -1;
 long long CpuStepCount = 0;
+bool HeadlessMode = false;
+vector<Uint16> HaltExecutionPcs;
+bool HaltedAtExecutionPc = false;
+Uint16 HaltedExecutionPc = 0;
+
+bool parseHexWordArg( const string& raw, Uint16& out )
+{
+	if( raw.empty() )
+		return false;
+	char* end = NULL;
+	unsigned long v = strtoul(raw.c_str(), &end, 0);
+	if( end==raw.c_str() || *end!='\0' || v>0xffff )
+		return false;
+	out = (Uint16) v;
+	return true;
+}
+
+bool appendWordListArg( const string& rawList, vector<Uint16>& out )
+{
+	string token;
+	stringstream ss(rawList);
+	while( getline(ss, token, ',') ) {
+		if( token.empty() )
+			return false;
+		Uint16 value;
+		if( !parseHexWordArg(token, value) )
+			return false;
+		out.push_back(value);
+	}
+	return !out.empty();
+}
 
 char transliterateText( Uint8 ascii )
 {
@@ -69,6 +104,18 @@ bool hostCycle( EventLoop *emulator )
 	static Uint8 lc = 0;
 	static bool waitForPrompt = true;
 	static int promptCheckDivider = 0;
+
+	if( !HaltExecutionPcs.empty() ) {
+		Uint16 pc = emulator->cpu->getProgramCounter();
+		for( size_t i = 0; i<HaltExecutionPcs.size(); i++ ) {
+			if( pc==HaltExecutionPcs[i] ) {
+				HaltedAtExecutionPc = true;
+				HaltedExecutionPc = pc;
+				emulator->requestExit();
+				return true;
+			}
+		}
+	}
 
 	//	if( ptr == size ) {
 	if( size == -1 ) {
@@ -179,7 +226,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--steps <count>]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--steps <count>] [--halt-execution <addr[,addr...]>] [--headless]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -210,6 +257,10 @@ int main( int args, char** argv )
 			PrintTextAtExit = true;
 			continue;
 		}
+		if( arg == "--headless" ) {
+			HeadlessMode = true;
+			continue;
+		}
 		if( arg == "--steps" ) {
 			if( i+1>=args ) {
 				cerr << "Missing value for --steps\n";
@@ -230,13 +281,36 @@ int main( int args, char** argv )
 			}
 			continue;
 		}
+		if( arg == "--halt-execution" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --halt-execution\n";
+				return 1;
+			}
+			if( !appendWordListArg(argv[++i], HaltExecutionPcs) ) {
+				cerr << "Invalid value for --halt-execution\n";
+				return 1;
+			}
+			continue;
+		}
+		if( arg.find("--halt-execution=")==0 ) {
+			if( !appendWordListArg(arg.substr(sizeof("--halt-execution=")-1), HaltExecutionPcs) ) {
+				cerr << "Invalid value for --halt-execution\n";
+				return 1;
+			}
+			continue;
+		}
 		cerr << "Unrecognized argument: " << arg << "\n";
 		return 1;
 	}
 
+	if( HeadlessMode ) {
+		setenv("SDL_VIDEODRIVER", "dummy", 1);
+		setenv("SDL_AUDIODRIVER", "dummy", 1);
+	}
+
 	EventLoop emulator;
 
-	if( InputFileName!=NULL || CpuStepLimit>=0 ) {
+	if( InputFileName!=NULL || CpuStepLimit>=0 || !HaltExecutionPcs.empty() ) {
 		// Automated runs should start from the emulation screen, not the host help menu.
 		emulator.dismissHostMenu();
 		emulator.incorporate(hostCycle, true);
@@ -248,6 +322,9 @@ int main( int args, char** argv )
 
 	if( PrintTextAtExit )
 		printTextScreen(&emulator);
+	if( !HaltExecutionPcs.empty() && HaltedAtExecutionPc ) {
+		cout << "Stopped at PC=" << hex << uppercase << setw(4) << setfill('0') << (int)HaltedExecutionPc << dec << "\n";
+	}
 
 	if( !GuestCoreDumpFile.empty() && !writeGuestCoreDump(&emulator, GuestCoreDumpFile) )
 		return 1;

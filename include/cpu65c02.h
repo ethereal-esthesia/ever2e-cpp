@@ -233,6 +233,9 @@ public:
 	void cycle();
 		// Complete cycle of simulated 65C02 application
 
+	Uint16 getProgramCounter() const;
+		// Returns current program counter
+
 	std::string getOpcodeString();
 		// Returns decoded opcode and operands
 		
