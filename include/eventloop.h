@@ -104,6 +104,9 @@ class EventLoop
 	Uint32 checkEventTimer;
 	std::map<SDL_Keycode, Uint8> translatedDownKeys;
 	std::deque<Uint8> pasteQueue;
+	bool pasteWasActive;
+	int pasteDrainWatchCycles;
+	bool pasteClearPending;
 		
 #ifdef _BENCHMARK_
 	double times;

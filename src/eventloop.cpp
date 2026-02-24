@@ -242,6 +242,9 @@ EventLoop::EventLoop()
 
 	checkEventTimer = 0;
 	translatedDownKeys.clear();
+	pasteWasActive = false;
+	pasteDrainWatchCycles = 0;
+	pasteClearPending = false;
 
 #ifdef _BENCHMARK_
 	// Time CPU
@@ -493,6 +496,9 @@ void EventLoop::cycle()
 								if( clipText != NULL ) {
 									queuePasteText((const Uint8*)clipText, strlen(clipText), true);
 									SDL_free(clipText);
+									// Enable suppression immediately so trailing host key events in
+									// this same poll cycle cannot leak into guest input.
+									suppressHostKeys = (hostMenu==MENU_OFF && !pasteQueue.empty());
 								}
 							}
 							break;
@@ -648,11 +654,37 @@ void EventLoop::cycle()
 	// Inject queued paste text one key at a time only when keyboard latch is clear.
 	// This runs every cycle (not just event-poll windows) so large scripted pastes
 	// are not bottlenecked by host event polling cadence.
-	if( hostMenu==MENU_OFF && !pasteQueue.empty() && !(memory->getMem(0xc000)&0x80) ) {
-		Uint8 pasteKey = pasteQueue.front();
-		pasteQueue.pop_front();
-		keyboard->keyPress(pasteKey);
-		keyboard->keyRelease(pasteKey);
+	if( hostMenu==MENU_OFF ) {
+		if( !pasteQueue.empty() ) {
+			pasteWasActive = true;
+			pasteDrainWatchCycles = 0;
+			pasteClearPending = false;
+			if( !(memory->getMem(0xc000)&0x80) ) {
+				Uint8 pasteKey = pasteQueue.front();
+				pasteQueue.pop_front();
+				keyboard->keyPress(pasteKey);
+				keyboard->keyRelease(pasteKey);
+			}
+		}
+		else if( pasteWasActive ) {
+			// Give the guest a short grace window to consume the final pasted key,
+			// then clear host-injected keyboard state to prevent stale typeahead.
+			pasteDrainWatchCycles++;
+			if( pasteDrainWatchCycles>1 ) {
+				keyboard->putStrobe();
+				pasteWasActive = false;
+				pasteDrainWatchCycles = 0;
+				pasteClearPending = true;
+			}
+		}
+	}
+	if( hostMenu==MENU_OFF && pasteClearPending ) {
+		Uint8 c000 = memory->getMem(0xc000);
+		if( c000&0x80 ) {
+			keyboard->putStrobe();
+		}
+		else
+			pasteClearPending = false;
 	}
 
 	// Check to see if emulation is in idle mode and cancel updates as needed
@@ -744,33 +776,83 @@ void EventLoop::queuePasteText( const Uint8* text, size_t size, bool fromClipboa
 {
 	if( text==NULL || size==0 )
 		return;
-
-	// Clipboard text often carries an extra terminal newline from host editors.
-	// Keep one intentional trailing newline, but drop one duplicate trailer.
-	size_t effectiveSize = size;
-	if( fromClipboard && effectiveSize>=2 ) {
-		if( text[effectiveSize-2]==0x0d && text[effectiveSize-1]==0x0a && effectiveSize>=4 &&
-				text[effectiveSize-4]==0x0d && text[effectiveSize-3]==0x0a )
-			effectiveSize -= 2;
-		else if( text[effectiveSize-1]==0x0a && text[effectiveSize-2]==0x0a )
-			effectiveSize -= 1;
-		else if( text[effectiveSize-1]==0x0d && text[effectiveSize-2]==0x0d )
-			effectiveSize -= 1;
-	}
-
-	for( size_t i = 0; i<effectiveSize; i++ ) {
+	std::deque<Uint8> normalized;
+	for( size_t i = 0; i<size; i++ ) {
 		Uint8 c = text[i];
 		if( c==0x0d ) {
 			// Treat CRLF as a single return.
-			if( i+1<effectiveSize && text[i+1]==0x0a )
+			if( i+1<size && text[i+1]==0x0a )
 				i++;
-			pasteQueue.push_back(0x0d);
+			normalized.push_back(0x0d);
 			continue;
 		}
 		if( c==0x0a )
 			c = 0x0d;
-		pasteQueue.push_back(c);
+		normalized.push_back(c);
 	}
+
+	// Clipboard text may include one or more extra terminal blank lines.
+	// Preserve a single intentional trailing return and drop extras, including
+	// whitespace-only trailing blank lines.
+	if( fromClipboard ) {
+		// Collapse repeated returns globally for clipboard paste so blank lines
+		// do not queue extra "empty command" enters during high-speed injection.
+		std::deque<Uint8> collapsed;
+		for( size_t i = 0; i<normalized.size(); i++ ) {
+			Uint8 c = normalized[i];
+			if( c==0x0d && !collapsed.empty() && collapsed.back()==0x0d )
+				continue;
+			collapsed.push_back(c);
+		}
+		normalized.swap(collapsed);
+
+		// Also collapse whitespace-only blank lines: CR + [space/tab]* + CR -> CR.
+		std::deque<Uint8> compacted;
+		for( size_t i = 0; i<normalized.size(); ) {
+			if( normalized[i]!=0x0d ) {
+				compacted.push_back(normalized[i]);
+				i++;
+				continue;
+			}
+			compacted.push_back(0x0d);
+			size_t j = i+1;
+			while( j<normalized.size() &&
+					(normalized[j]==' ' || normalized[j]=='\t') )
+				j++;
+			if( j<normalized.size() && normalized[j]==0x0d ) {
+				i = j;
+				continue;
+			}
+			for( size_t k = i+1; k<j; k++ )
+				compacted.push_back(normalized[k]);
+			i = j;
+		}
+		normalized.swap(compacted);
+
+		while( !normalized.empty() &&
+				(normalized.back()==' ' || normalized.back()=='\t') )
+			normalized.pop_back();
+
+		bool keepOneReturn = false;
+		if( !normalized.empty() && normalized.back()==0x0d ) {
+			keepOneReturn = true;
+			normalized.pop_back();
+		}
+
+		while( !normalized.empty() ) {
+			Uint8 c = normalized.back();
+			if( c==0x0d || c==' ' || c=='\t' ) {
+				normalized.pop_back();
+				continue;
+			}
+			break;
+		}
+
+		if( keepOneReturn )
+			normalized.push_back(0x0d);
+	}
+	for( size_t i = 0; i<normalized.size(); i++ )
+		pasteQueue.push_back(normalized[i]);
 }
 
 void EventLoop::queuePasteKey( Uint8 key )
