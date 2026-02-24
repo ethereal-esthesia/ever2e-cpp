@@ -29,6 +29,7 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <cstdint>
 #include "eventloop.h"
 
 
@@ -40,6 +41,13 @@ bool PrintTextAtExit = false;
 bool PrintCpuStateAtExit = false;
 long long CpuStepLimit = -1;
 long long CpuStepCount = 0;
+long long TraceStepsFrom = -1;
+long long TraceStepsCount = 0;
+string TraceFilePath;
+bool TraceStartPcSet = false;
+Uint16 TraceStartPc = 0;
+bool TraceStarted = false;
+ofstream TraceFileOut;
 bool HeadlessMode = false;
 vector<Uint16> HaltExecutionPcs;
 vector<Uint16> RequiredHaltPcs;
@@ -169,6 +177,24 @@ bool hostCycle( EventLoop *emulator )
 
 	if( CpuStepLimit>=0 ) {
 		CpuStepCount++;
+		Uint16 pc = emulator->cpu->getProgramCounter();
+		if( TraceFileOut.is_open() ) {
+			if( !TraceStartPcSet || TraceStarted || pc==TraceStartPc )
+				TraceStarted = true;
+			if( TraceStarted ) {
+				Uint8 opcode = emulator->memory->getMem(pc);
+				TraceFileOut << CpuStepCount << ','
+						<< hex << uppercase << setw(4) << setfill('0') << (int)pc << ','
+						<< setw(2) << (int)opcode << dec << ','
+						<< '"' << emulator->cpu->getRegisterString() << '"' << "\n";
+			}
+		}
+		if( TraceStepsFrom>=0 && TraceStepsCount>0 &&
+				CpuStepCount>=TraceStepsFrom &&
+				CpuStepCount<(TraceStepsFrom+TraceStepsCount) ) {
+			cout << "trace_step=" << CpuStepCount
+				 << " " << emulator->cpu->getRegisterString() << "\n";
+		}
 		if( CpuStepCount>=CpuStepLimit )
 			emulator->requestExit();
 	}
@@ -198,7 +224,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -257,6 +283,78 @@ int main( int args, char** argv )
 			}
 			continue;
 		}
+		if( arg == "--trace-file" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --trace-file\n";
+				return 1;
+			}
+			TraceFilePath = argv[++i];
+			continue;
+		}
+		if( arg.find("--trace-file=")==0 ) {
+			TraceFilePath = arg.substr(sizeof("--trace-file=")-1);
+			continue;
+		}
+		if( arg == "--trace-start-pc" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --trace-start-pc\n";
+				return 1;
+			}
+			if( !parseHexWordArg(argv[++i], TraceStartPc) ) {
+				cerr << "Invalid value for --trace-start-pc\n";
+				return 1;
+			}
+			TraceStartPcSet = true;
+			continue;
+		}
+		if( arg.find("--trace-start-pc=")==0 ) {
+			if( !parseHexWordArg(arg.substr(sizeof("--trace-start-pc=")-1), TraceStartPc) ) {
+				cerr << "Invalid value for --trace-start-pc\n";
+				return 1;
+			}
+			TraceStartPcSet = true;
+			continue;
+		}
+		if( arg == "--trace-steps-from" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --trace-steps-from\n";
+				return 1;
+			}
+			TraceStepsFrom = strtoll(argv[++i], NULL, 10);
+			if( TraceStepsFrom<0 ) {
+				cerr << "Invalid value for --trace-steps-from\n";
+				return 1;
+			}
+			continue;
+		}
+		if( arg.find("--trace-steps-from=")==0 ) {
+			TraceStepsFrom = strtoll(arg.c_str() + (sizeof("--trace-steps-from=")-1), NULL, 10);
+			if( TraceStepsFrom<0 ) {
+				cerr << "Invalid value for --trace-steps-from\n";
+				return 1;
+			}
+			continue;
+		}
+		if( arg == "--trace-steps-count" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --trace-steps-count\n";
+				return 1;
+			}
+			TraceStepsCount = strtoll(argv[++i], NULL, 10);
+			if( TraceStepsCount<0 ) {
+				cerr << "Invalid value for --trace-steps-count\n";
+				return 1;
+			}
+			continue;
+		}
+		if( arg.find("--trace-steps-count=")==0 ) {
+			TraceStepsCount = strtoll(arg.c_str() + (sizeof("--trace-steps-count=")-1), NULL, 10);
+			if( TraceStepsCount<0 ) {
+				cerr << "Invalid value for --trace-steps-count\n";
+				return 1;
+			}
+			continue;
+		}
 		if( arg == "--halt-execution" ) {
 			if( i+1>=args ) {
 				cerr << "Missing value for --halt-execution\n";
@@ -303,6 +401,14 @@ int main( int args, char** argv )
 	}
 
 	EventLoop emulator;
+	if( !TraceFilePath.empty() ) {
+		TraceFileOut.open(TraceFilePath.c_str(), ios::out | ios::trunc);
+		if( !TraceFileOut.is_open() ) {
+			cerr << "Unable to open trace file: \"" << TraceFilePath << "\"\n";
+			return 1;
+		}
+		TraceFileOut << "step,pc,opcode,registers\n";
+	}
 	if( HeadlessMode )
 		emulator.setUnthrottled(true);
 
@@ -341,6 +447,8 @@ int main( int args, char** argv )
 
 	if( !GuestCoreDumpFile.empty() && !writeGuestCoreDump(&emulator, GuestCoreDumpFile) )
 		return 1;
+	if( TraceFileOut.is_open() )
+		TraceFileOut.close();
 	
 	return 0;
 

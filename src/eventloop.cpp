@@ -244,6 +244,7 @@ EventLoop::EventLoop()
 	translatedDownKeys.clear();
 	pasteWasActive = false;
 	pasteClearPending = false;
+	pasteClearDelayCycles = 0;
 
 #ifdef _BENCHMARK_
 	// Time CPU
@@ -657,6 +658,7 @@ void EventLoop::cycle()
 		if( !pasteQueue.empty() ) {
 			pasteWasActive = true;
 			pasteClearPending = false;
+			pasteClearDelayCycles = 0;
 			if( !(memory->getMem(0xc000)&0x80) ) {
 				Uint8 pasteKey = pasteQueue.front();
 				pasteQueue.pop_front();
@@ -665,16 +667,18 @@ void EventLoop::cycle()
 			}
 		}
 		else if( pasteWasActive ) {
-			// Queue has drained; clear latch so trailing injected return does not
-			// leak into subsequent guest input polling.
-			keyboard->putStrobe();
+			// Queue drained. Give guest a tiny window to consume final return.
 			pasteWasActive = false;
 			pasteClearPending = true;
+			pasteClearDelayCycles = 2;
 		}
 	}
 	if( hostMenu==MENU_OFF && pasteClearPending ) {
 		Uint8 c000 = memory->getMem(0xc000);
-		if( c000&0x80 ) {
+		if( pasteClearDelayCycles>0 ) {
+			pasteClearDelayCycles--;
+		}
+		else if( c000&0x80 ) {
 			keyboard->putStrobe();
 		}
 		else

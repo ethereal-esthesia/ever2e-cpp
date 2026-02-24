@@ -163,7 +163,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _EOR,       _IND_X,     2,          6 },  // 0x41
 	{ _NOP,       _IMP,       2,          2 },  // 0x42
 	{ _NOP,       _IMP,       1,          1 },  // 0x43
-	{ _NOP,       _IMP,       3,          3 },  // 0x44
+	{ _NOP,       _IMP,       2,          3 },  // 0x44
 	{ _EOR,       _ZPG,       2,          3 },  // 0x45
 	{ _LSR,       _ZPG,       2,          5 },  // 0x46
 	{ _NOP,       _IMP,       1,          1 },  // 0x47
@@ -179,7 +179,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _EOR,       _IND_Y,     2,          5 },  // 0x51
 	{ _EOR,       _ZPG_IND,   2,          5 },  // 0x52
 	{ _NOP,       _IMP,       1,          1 },  // 0x53
-	{ _NOP,       _IMP,       4,          4 },  // 0x54
+	{ _NOP,       _IMP,       2,          4 },  // 0x54
 	{ _EOR,       _ZPG_X,     2,          4 },  // 0x55
 	{ _LSR,       _ZPG_X,     2,          6 },  // 0x56
 	{ _NOP,       _IMP,       1,          1 },  // 0x57
@@ -187,7 +187,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _EOR,       _ABS_Y,     3,          4 },  // 0x59
 	{ _PHY,       _IMP,       1,          3 },  // 0x5a
 	{ _NOP,       _IMP,       1,          1 },  // 0x5b
-	{ _NOP,       _IMP,       8,          8 },  // 0x5c
+	{ _NOP,       _IMP,       3,          8 },  // 0x5c
 	{ _EOR,       _ABS_X,     3,          4 },  // 0x5d
 	{ _LSR,       _ABS_X,     3,          6 },  // 0x5e
 	{ _NOP,       _IMP,       1,          1 },  // 0x5f
@@ -307,7 +307,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _CMP,       _IND_Y,     2,          5 },  // 0xd1
 	{ _CMP,       _ZPG_IND,   2,          5 },  // 0xd2
 	{ _NOP,       _IMP,       1,          1 },  // 0xd3
-	{ _NOP,       _IMP,       4,          4 },  // 0xd4
+	{ _NOP,       _IMP,       2,          4 },  // 0xd4
 	{ _CMP,       _ZPG_X,     2,          4 },  // 0xd5
 	{ _DEC,       _ZPG_X,     2,          6 },  // 0xd6
 	{ _NOP,       _IMP,       1,          1 },  // 0xd7
@@ -315,7 +315,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _CMP,       _ABS_Y,     3,          4 },  // 0xd9
 	{ _PHX,       _IMP,       1,          3 },  // 0xda
 	{ _NOP,       _IMP,       1,          1 },  // 0xdb
-	{ _NOP,       _IMP,       4,          4 },  // 0xdc
+	{ _NOP,       _IMP,       3,          4 },  // 0xdc
 	{ _CMP,       _ABS_X,     3,          4 },  // 0xdd
 	{ _DEC,       _ABS_X,     3,          6 },  // 0xde
 	{ _NOP,       _IMP,       1,          1 },  // 0xdf
@@ -339,7 +339,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _SBC,       _IND_Y,     2,          5 },  // 0xf1
 	{ _SBC,       _ZPG_IND,   2,          5 },  // 0xf2
 	{ _NOP,       _IMP,       1,          1 },  // 0xf3
-	{ _NOP,       _IMP,       4,          4 },  // 0xf4
+	{ _NOP,       _IMP,       2,          4 },  // 0xf4
 	{ _SBC,       _ZPG_X,     2,          4 },  // 0xf5
 	{ _INC,       _ZPG_X,     2,          6 },  // 0xf6
 	{ _NOP,       _IMP,       1,          1 },  // 0xf7
@@ -347,7 +347,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _SBC,       _ABS_Y,     3,          4 },  // 0xf9
 	{ _PLX,       _IMP,       1,          4 },  // 0xfa
 	{ _NOP,       _IMP,       1,          1 },  // 0xfb
-	{ _NOP,       _IMP,       4,          4 },  // 0xfc
+	{ _NOP,       _IMP,       3,          4 },  // 0xfc
 	{ _SBC,       _ABS_X,     3,          4 },  // 0xfd
 	{ _INC,       _ABS_X,     3,          6 },  // 0xfe
 	{ _NOP,       _IMP,       1,          1 },  // 0xff
