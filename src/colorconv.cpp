@@ -58,7 +58,7 @@ SDL_Color hlsToColor( Uint8 hue, Uint8 lum, Uint8 sat )
 	color.r = r;
 	color.g = g;
 	color.b = b;
-	color.unused = 0;
+	color.a = SDL_ALPHA_OPAQUE;
 
 	return color;
 
@@ -91,9 +91,8 @@ SDL_Color hsbToColor( Uint8 hue, Uint8 sat, Uint8 bri )
 	color.r = r;
 	color.g = g;
 	color.b = b;
-	color.unused = 0;
+	color.a = SDL_ALPHA_OPAQUE;
 
 	return color;
 
 }
-

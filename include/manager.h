@@ -39,12 +39,11 @@ class EventManager
 {
 
 	SDL_Surface* displaySurface;
+	SDL_Window* window;
 	PixelSurface* displaySurfaceClass;
 
 	SDL_Event event;
-	SDLMod modState;
-	Uint8* keyState;    // Pointer to SDL key states
-	int keyStateTotal;  // Number of SDL reserved keys
+	SDL_Keymod modState;
 	
 public:
 
@@ -83,7 +82,7 @@ public:
 		
 	void refreshEventStatus();
 
-	bool isPressed( SDLKey key );
+	bool isPressed( SDL_Keycode key );
 		// Returns whether a given key was pressed the last time the event queue was empty or
 		//    during the last call to refreshEventStatus
 		// Modifier keys return valid values

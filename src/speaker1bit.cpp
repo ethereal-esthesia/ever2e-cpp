@@ -57,7 +57,6 @@ Speaker1bit::Speaker1bit()
 
 Speaker1bit::~Speaker1bit()
 {	
-	SDL_CloseAudio();
 }	
 
 void Speaker1bit::toggle()
@@ -136,4 +135,3 @@ bool Speaker1bit::pollSound( Uint16& sample )
 	else
 		return false;
 }
-

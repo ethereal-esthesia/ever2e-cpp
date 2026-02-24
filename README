@@ -18,6 +18,25 @@ http://www.cursorcorner.net/contact.php
 
 
 -------------------------------------------------------------------------------
+                               MACOS QUICK START
+-------------------------------------------------------------------------------
+
+From the repository root:
+
+    ./scripts/macos/build.sh
+    ./scripts/macos/run.sh
+
+Optional cleanup:
+
+    ./scripts/macos/clean.sh
+
+Notes:
+- The run script starts from "release/" so ROM/assets resolve correctly.
+- If SDL is installed in a non-standard location, set PKG_CONFIG_PATH before
+  running build.sh.
+
+
+-------------------------------------------------------------------------------
                                   COMPILATION                                  
 -------------------------------------------------------------------------------
 

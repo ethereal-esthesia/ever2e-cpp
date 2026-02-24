@@ -32,26 +32,25 @@ using namespace std;
 
 EventManager::EventManager( int xSize, int ySize, int bpp, bool fullScreen, const char* caption, const char* iconFile )
 {	
+	(void) iconFile;
 	static bool instance = false;
 	if( instance == true ) {
 		std::cerr << "Multiple event manager instances requested. For maximum portability, only one interface is supported per application.\n";
 		exit(1);
 	}
 
-	if( SDL_Init( SDL_INIT_TIMER | SDL_INIT_VIDEO ) ) {
+	if( !SDL_Init( SDL_INIT_VIDEO ) ) {
 		std::cerr << "Unable to initialize SDL: " << SDL_GetError() << std::endl;
 		exit(1);
 	}
 	atexit(SDL_Quit);
 
-	SDL_WM_SetCaption(caption, caption);
-	SDL_Surface * icon = NULL;
-//	if( iconFile != NULL )
-//		icon = IMG_Load(iconFile);
-//	if( icon != NULL )
-//		SDL_WM_SetIcon(icon, NULL);
-
 	// Set mode
+	window = SDL_CreateWindow(caption, xSize, ySize, SDL_WINDOW_RESIZABLE);
+	if( window == NULL ) {
+		std::cerr << "Unable to create window: " << SDL_GetError() << std::endl;
+		exit(1);
+	}
 	displaySurface = NULL;
 	displaySurfaceClass = NULL;
 	resizeDisplay(xSize, ySize, bpp, fullScreen);
@@ -59,34 +58,35 @@ EventManager::EventManager( int xSize, int ySize, int bpp, bool fullScreen, cons
 	instance = true;
 
 	displaySurfaceClass = new PixelSurface(displaySurface, true);
-	
-	keyState = SDL_GetKeyState(&keyStateTotal);
-	
 }
 
 EventManager::~EventManager()
 {
 	if( displaySurface == NULL )
 		return;
-	Uint32 pixel = SDL_MapRGB(displaySurface->format, 0, 0, 0);
+	Uint32 pixel = SDL_MapSurfaceRGB(displaySurface, 0, 0, 0);
 	SDL_LockSurface(displaySurface);
-	SDL_FillRect(displaySurface, NULL, pixel);
+	SDL_FillSurfaceRect(displaySurface, NULL, pixel);
 	SDL_UnlockSurface(displaySurface);
-	SDL_Flip(displaySurface);
+	SDL_UpdateWindowSurface(window);
 	SDL_Delay(67);  // Wait 1/15th of a second for screen refresh
-	SDL_FreeSurface(displaySurface);
+	if( window != NULL )
+		SDL_DestroyWindow(window);
 }
 
 void EventManager::resizeDisplay( int xSize, int ySize, int bpp, bool fullScreen )
 {
-	if( displaySurface!=NULL )
-		SDL_FreeSurface(displaySurface);
-	Uint32 flags = SDL_SWSURFACE | (fullScreen ? SDL_FULLSCREEN : 0); 
-	if( bpp == 0 ) {
+	if( bpp == 0 )
 		bpp = 32;
-		flags |= SDL_ANYFORMAT;
+	if( !SDL_SetWindowFullscreen(window, fullScreen) ) {
+		std::cerr << "Unable to set fullscreen state: " << SDL_GetError() << std::endl;
+		exit(1);
 	}
-	displaySurface = SDL_SetVideoMode(xSize, ySize, bpp, flags);
+	if( !fullScreen && !SDL_SetWindowSize(window, xSize, ySize) ) {
+		std::cerr << "Unable to set window size: " << SDL_GetError() << std::endl;
+		exit(1);
+	}
+	displaySurface = SDL_GetWindowSurface(window);
 	if( displaySurface == NULL ) {
 		std::cerr << "Unable to initialize video display: " << SDL_GetError() << std::endl;
 		exit(1);
@@ -95,13 +95,19 @@ void EventManager::resizeDisplay( int xSize, int ySize, int bpp, bool fullScreen
 		std::cerr << "Unable to apply requested video surface size: " << xSize << "x" << ySize << std::endl;
 		exit(1);
 	}
-	if( displaySurface->format->BitsPerPixel == 8 ) {
-		displaySurface = SDL_SetVideoMode(xSize, ySize, 32, flags&(~SDL_ANYFORMAT));
-		if( displaySurface == NULL || displaySurface->format->BitsPerPixel == 8 || displaySurface->w != xSize || displaySurface->h != ySize ) {
+	if( SDL_BITSPERPIXEL(displaySurface->format) == 8 ) {
+		if( !SDL_SetWindowSize(window, xSize, ySize) ) {
+			std::cerr << "Unable to set desired resolution.\n";
+			exit(1);
+		}
+		displaySurface = SDL_GetWindowSurface(window);
+		if( displaySurface == NULL || SDL_BITSPERPIXEL(displaySurface->format) == 8 || displaySurface->w != xSize || displaySurface->h != ySize ) {
 			std::cerr << "Unable to set desired resolution.\n";
 			exit(1);
 		}
 	}
+	if( displaySurfaceClass != NULL )
+		displaySurfaceClass->setSurface(displaySurface);
 	if( fullScreen ) 
 		hideCursor();
 	else
@@ -118,25 +124,32 @@ PixelSurface* EventManager::getVideoSurface()
 
 void EventManager::getVideoParam( int &xSize, int &ySize, int &bpp )
 {
-	const SDL_VideoInfo *videoInfo = SDL_GetVideoInfo();
-	xSize = videoInfo->current_w;
-	ySize = videoInfo->current_h;
-	bpp = videoInfo->vfmt->BitsPerPixel;
+	SDL_DisplayID displayId = SDL_GetPrimaryDisplay();
+	const SDL_DisplayMode *mode = SDL_GetCurrentDisplayMode(displayId);
+	if( mode == NULL ) {
+		xSize = displaySurface ? displaySurface->w : 0;
+		ySize = displaySurface ? displaySurface->h : 0;
+		bpp = displaySurface ? SDL_BITSPERPIXEL(displaySurface->format) : 0;
+		return;
+	}
+	xSize = mode->w;
+	ySize = mode->h;
+	bpp = SDL_BITSPERPIXEL(mode->format);
 }
 
 void EventManager::videoRefresh()
 {
-	SDL_Flip(displaySurface);
+	SDL_UpdateWindowSurface(window);
 }
 
 void EventManager::hideCursor()
 {
-	SDL_ShowCursor(SDL_DISABLE);
+	SDL_HideCursor();
 }
 
 void EventManager::showCursor()
 {
-	SDL_ShowCursor(SDL_ENABLE);
+	SDL_ShowCursor();
 }
 
 void EventManager::consoleDisplay()
@@ -147,7 +160,7 @@ void EventManager::consoleDisplay()
 
 Uint32 EventManager::getClock()
 {
-	return SDL_GetTicks();
+	return (Uint32) SDL_GetTicks();
 }
 
 const SDL_Event* EventManager::popEvent()
@@ -173,11 +186,8 @@ void EventManager::refreshEventStatus()
 	modState = SDL_GetModState();
 }
 
-bool EventManager::isPressed( SDLKey key )
+bool EventManager::isPressed( SDL_Keycode key )
 {
-	// Error checking
-	assert( (Uint32) key < (Uint32) keyStateTotal );
-
 	switch( key )
 	{
 	
@@ -205,14 +215,14 @@ bool EventManager::isPressed( SDLKey key )
 			break;
 
 		case SDLK_LMETA:
-			return modState & KMOD_LMETA;
+			return modState & KMOD_LGUI;
 			break;
 			
 		case SDLK_RMETA:
-			return modState & KMOD_RMETA;
+			return modState & KMOD_RGUI;
 			break;
 			
-		case SDLK_NUMLOCK:
+		case SDLK_NUMLOCKCLEAR:
 			return modState & KMOD_NUM;
 			break;
 			
@@ -229,7 +239,15 @@ bool EventManager::isPressed( SDLKey key )
 
 	}
 
-	return keyState[key];
+	SDL_Keymod keymod = SDL_KMOD_NONE;
+	SDL_Scancode scancode = SDL_GetScancodeFromKey(key, &keymod);
+	if( scancode == SDL_SCANCODE_UNKNOWN )
+		return false;
+	int keyCount = 0;
+	const bool* keyState = SDL_GetKeyboardState(&keyCount);
+	if( keyState == NULL || scancode >= keyCount )
+		return false;
+	return keyState[scancode];
 
 }
 

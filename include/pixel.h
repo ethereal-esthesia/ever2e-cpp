@@ -60,6 +60,8 @@ public:
 	PixelSurface( const char* fileName );
 	
 	~PixelSurface();
+
+	void setSurface( SDL_Surface* newSurface );
 	
 	void setPalette( SDL_Color *palette, int entries );
 

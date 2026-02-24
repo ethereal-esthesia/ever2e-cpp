@@ -321,10 +321,10 @@ void EventLoop::cycle()
 /***
 					// Ignore key if it is not being pressed at this moment to avoid key glitches in malfunctioning keyboards
 					nextEvent = manager->peekEvent();
-					if( ( nextEvent != NULL ) && ( nextEvent->type == SDL_KEYUP ) && ( nextEvent->key.keysym.sym == event->key.keysym.sym ) )
+					if( ( nextEvent != NULL ) && ( nextEvent->type == SDL_KEYUP ) && ( nextEvent->key.key == event->key.key ) )
 						break;
 ***/				
-					switch( event->key.keysym.sym ) {
+					switch( event->key.key ) {
 
 						case SDLK_F1:
 							if( doubleDown )
@@ -352,7 +352,7 @@ void EventLoop::cycle()
 						case SDLK_F4:
 							if( doubleDown )
 								break;
-							if( event->key.keysym.mod&KMOD_ALT )
+							if( event->key.mod&KMOD_ALT )
 								exitStatus = true;
 							else if( cpuMult<MAX_CPU_MULT ) {
 								cpuMult <<= 1;
@@ -416,8 +416,8 @@ void EventLoop::cycle()
 						case SDLK_F9:
 							if( doubleDown )
 								break;
-							if( event->key.keysym.mod&KMOD_SHIFT ) {
-								if( event->key.keysym.mod&KMOD_CTRL ) {
+							if( event->key.mod&KMOD_SHIFT ) {
+								if( event->key.mod&KMOD_CTRL ) {
 									// Quick-load state
 									/// STUB
 								}
@@ -463,16 +463,16 @@ void EventLoop::cycle()
 
 								// Pass key to keyboard handler
 								Uint8 key;
-								if( keyConvert->translate(event->key.keysym, key) ) {
+								if( keyConvert->translate(event->key.key, event->key.mod, key) ) {
 									keyboard->keyPress(key);
 									hostKeyboard->keyPress(key);
 #ifdef _KEY_TEST_OUTPUT
-									cout << "PRESS '" << SDL_GetKeyName(event->key.keysym.sym) << hex << "' " << int(key) << dec << endl;
+									cout << "PRESS '" << SDL_GetKeyName(event->key.key) << hex << "' " << int(key) << dec << endl;
 #endif
 								}
 #ifdef _KEY_TEST_OUTPUT
 								else
-									cout << "UNPROCESSED KEY PRESSED: " << SDL_GetKeyName( event->key.keysym.sym ) << endl;
+									cout << "UNPROCESSED KEY PRESSED: " << SDL_GetKeyName( event->key.key ) << endl;
 #endif
 								break;
 							}
@@ -485,10 +485,10 @@ void EventLoop::cycle()
 				
 						// Pass key to keyboard handler
 						Uint8 key;
-						if( keyConvert->translate(event->key.keysym, key) ) {
+						if( keyConvert->translate(event->key.key, event->key.mod, key) ) {
 							keyboard->keyRelease(key);
 #ifdef _KEY_TEST_OUTPUT
-							cout << "RELEASE '" << SDL_GetKeyName(event->key.keysym.sym) << hex << "' " << int(key) << dec << endl;
+							cout << "RELEASE '" << SDL_GetKeyName(event->key.key) << hex << "' " << int(key) << dec << endl;
 #endif
 							hostKeyboard->keyRelease(key);
 						}
@@ -496,7 +496,7 @@ void EventLoop::cycle()
 					}
 					break;
 
-				case SDL_VIDEOEXPOSE:
+				case SDL_EVENT_WINDOW_EXPOSED:
 					if( idleState ) {
 						monitor->refreshFrame();
 						manager->videoRefresh();

@@ -45,34 +45,12 @@ class SoundBuffer
 	static const int SAMPLE_PAGES = 3;
 	static const int SAMPLE_BYTES = 2;                         // Number of bytes per sample
 	static const int CHANNELS = 1;                             // Speaker sound channels (1 for an Apple IIe)
-	static const float MAX_SOUND_WORD = 32767.;                // Min and max limits on sound resolution
-	static const float MIN_SOUND_WORD = -32768.;
-	static const float SAMPLE_RATE = 22050;                    // 22050 sound words per second
+	static constexpr float MAX_SOUND_WORD = 32767.;                // Min and max limits on sound resolution
+	static constexpr float MIN_SOUND_WORD = -32768.;
+	static constexpr float SAMPLE_RATE = 22050;                    // 22050 sound words per second
 	static const Sint32 SAMPLE_DURATION = 1000000000/22050;    // Sample length in nanoseconds
 	
-	SDL_AudioSpec obtainedSpec;  // Gives information about hardware interface, but the following indicate the software interface specs
-
-#ifdef _SOUND_TEST_OUTPUT_
-	int hPos;
-	Sint32 sum;
-	Uint32 sampleCount;
-#endif
-
-	// Sound data
-	struct BufferData 
-	{
-		Sint16* sampleBuffer;                                  // Array for writing emulated sound data
-		int readPage;
-		int writePtr;
-		bool locked;
-		int skipCount;
-		int sampleReadCount;
-		bool syncFlag;
-	} bufferData;
-
-	static void _audioCallback( void *dataPtr, Uint8 *stream, int size );
-	
-	static void _quitSound();
+	SDL_AudioStream* stream;
 
 public:
 

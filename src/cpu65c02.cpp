@@ -1550,7 +1550,7 @@ string Cpu65c02::getOpcodeString()
 	stringstream out;
 
 	Uint16 address = _PC;
-	Uint16 machineCode = ((int)opcode - (int)(&OPCODE_65C02)) / sizeof(OpcodeTable);
+	Uint16 machineCode = (Uint16) (((intptr_t)opcode - (intptr_t)(&OPCODE_65C02)) / (intptr_t) sizeof(OpcodeTable));
 	Uint8 operandLow = 0;
 	Uint8 operandHigh = 0;
 	

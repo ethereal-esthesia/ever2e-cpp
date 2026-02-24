@@ -22,7 +22,7 @@
  *   shane@cursorcorner.net                                              *
  *                                                                       *
  *************************************************************************/
- 
+
 
 #include "sound.h"
 
@@ -30,133 +30,41 @@
 using namespace std;
 
 
-void SoundBuffer::_audioCallback( void *dataPtr, Uint8 *stream, int size )
-{
-
-	// Error checking
-	assert(SAMPLE_BUFFER_SIZE*SAMPLE_BYTES == size);
-	
-	BufferData *bufferData = (BufferData*) dataPtr;
-	int writePage = (bufferData->writePtr / SAMPLE_BUFFER_SIZE);
-
-	if( bufferData->readPage == writePage ) {
-		// Fill audio with a pause at current speaker level to allow time to resolve sound buffer read/write conflict
-		memset(stream, (bufferData->readPage+1)*size-1, size);
-		bufferData->skipCount++;
-	}
-	else {
-		// Copy read page to stream and set next read page to current write page
-		memcpy(stream, &(bufferData->sampleBuffer[SAMPLE_BUFFER_SIZE*bufferData->readPage]), size);
-		bufferData->readPage++;
-		bufferData->readPage %= SAMPLE_PAGES;
-	}
-
-	bufferData->sampleReadCount += SAMPLE_BUFFER_SIZE;
-	bufferData->syncFlag = true;
-		
-}
-
-void SoundBuffer::_quitSound()
-{
-	SDL_QuitSubSystem(SDL_INIT_AUDIO);
-}
-
 SoundBuffer::SoundBuffer()
 {
-
 	static bool instance = false;
 	if( instance == true ) {
 		cerr << "Multiple sound manager instances requested. Mixing is not currently supported.\n";
+		stream = NULL;
 		return;
 	}
 	instance = true;
 
-	if( !SDL_WasInit(SDL_INIT_AUDIO) )
-		if( SDL_InitSubSystem(SDL_INIT_AUDIO) != 0 ) {
-			cerr << "Error initializing sound: " << SDL_GetError() << endl;
-			exit(1);
-			atexit(_quitSound);
-		}
-
-	bufferData.sampleBuffer = new Sint16[SAMPLE_BUFFER_SIZE*SAMPLE_PAGES];
-	for( int k = 0; k<SAMPLE_BUFFER_SIZE*SAMPLE_PAGES; k++ )
-		bufferData.sampleBuffer[k] = 0;
-	bufferData.writePtr = 0;
-	bufferData.readPage = 1;
-	bufferData.locked = false;
-	bufferData.skipCount = 0;
-	bufferData.sampleReadCount = 0;
-	bufferData.syncFlag = false;
 	SDL_AudioSpec audioSpec;
+	audioSpec.format = SDL_AUDIO_S16;
+	audioSpec.channels = CHANNELS;
+	audioSpec.freq = (int) SAMPLE_RATE;
 
-	audioSpec.freq = SAMPLE_RATE;
-	audioSpec.format = AUDIO_S16SYS;
-	audioSpec.channels = 1;
-	audioSpec.samples = SAMPLE_BUFFER_SIZE;
-	audioSpec.callback = _audioCallback;
-	audioSpec.userdata = (void*) &bufferData;
-	
-	// Start sound channel
-	if( SDL_OpenAudio(&audioSpec, &obtainedSpec) ) {
+	stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audioSpec, NULL, NULL);
+	if( stream == NULL ) {
 		cerr << "Unable to open audio channel: " << SDL_GetError() << endl;
 		exit(1);
 	}
-	SDL_PauseAudio(0);
-
-#ifdef _SOUND_TEST_OUTPUT_
-	hPos = 0;
-	sum = 0;
-	sampleCount = 0;	
-#endif
-
+	if( !SDL_ResumeAudioStreamDevice(stream) ) {
+		cerr << "Unable to start audio channel: " << SDL_GetError() << endl;
+		exit(1);
+	}
 }
 
 SoundBuffer::~SoundBuffer()
 {
-	SDL_CloseAudio();
+	if( stream != NULL )
+		SDL_DestroyAudioStream(stream);
 }
 
 void SoundBuffer::playSample( Sint16 sample )
 {
-
-	SDL_LockAudio();
-
-	// Commit word to sound buffer looping back to first page if necessary
-	bufferData.sampleBuffer[bufferData.writePtr] = sample;
-	bufferData.writePtr++;
-	if( bufferData.writePtr == SAMPLE_BUFFER_SIZE*SAMPLE_PAGES )
-		bufferData.writePtr = 0;
-
-	SDL_UnlockAudio();
-
-#ifdef _SOUND_TEST_OUTPUT_
-
-	// Visualize sound wave via console output
-	sampleCount++;
-	hPos++;
-	
-	if( (hPos&0x07) > 0 ) {
-		sum += sample;
+	if( stream == NULL )
 		return;
-	}
-	
-	sum >>= 3;
-
-	if( sum < 0 )
-		cout << 'v';
-	else if( sum > 0 )
-		cout << '^';
-	else
-		cout << '-';
-
-	if( hPos >= 735 ) {
-		hPos = 0;
-		cout << " (" << bufferData.skipCount << " skips) (lag: " << int(bufferData.sampleReadCount/441.-sampleCount/441.)/100. << ")    \r";
-	}
-	
-	sum = 0;
-
-#endif  // _SOUND_TEST_OUTPUT_
-
+	SDL_PutAudioStreamData(stream, &sample, SAMPLE_BYTES);
 }
-
