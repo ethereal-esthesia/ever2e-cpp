@@ -46,9 +46,9 @@ class Speaker1bit
 	static const int SAMPLE_BUFFER_SIZE = 1024;                // Lag of 1/40th to 1/20th of a second at 22050Hz
 	static const int CHANNELS = 1;                             // Speaker sound channels (1 for an Apple IIe)
 	static const int BITS_PER_SAMPLE = 16;                     // Standard CD quality sound resolution
-	static const float MAX_SOUND_WORD = 32767.;                // Min and max limits on sound resolution
-	static const float MIN_SOUND_WORD = -32768.;
-	static const float SAMPLE_RATE = 22050;                    // 22050 sound words per second (48000 and 96000 are also common)
+	static constexpr float MAX_SOUND_WORD = 32767.;                // Min and max limits on sound resolution
+	static constexpr float MIN_SOUND_WORD = -32768.;
+	static constexpr float SAMPLE_RATE = 22050;                    // 22050 sound words per second (48000 and 96000 are also common)
 	static const Sint32 SAMPLE_DURATION = 1000000000/22050;    // Sample length in nanoseconds
 
 	static const int SKIP_CYCLES = 4;  // Granularity of physics simulation (speaker sensitivity)
@@ -56,16 +56,16 @@ class Speaker1bit
 	unsigned int cycleCount;           // Number of cycles played (used to tell which cycles to skip)
 	
 #ifdef SPEAKER_STATIC
-	static const float FRICTION = .01;                                 // 1% acceleration loss per unit velocity
+	static constexpr float FRICTION = .01;                                 // 1% acceleration loss per unit velocity
 	static const Sint32 CHARGE_DURATION = 20/SKIP_CYCLES;              // 20 cycles
-	static const float MAGNET_FORCE = 11.*SKIP_CYCLES*SKIP_CYCLES;     // Magnet acceleration in units distance per increment
-	static const float SPRING_FORCE = .00049*SKIP_CYCLES*SKIP_CYCLES;  // Units reverse spring acceleration per unit distance per increment
+	static constexpr float MAGNET_FORCE = 11.*SKIP_CYCLES*SKIP_CYCLES;     // Magnet acceleration in units distance per increment
+	static constexpr float SPRING_FORCE = .00049*SKIP_CYCLES*SKIP_CYCLES;  // Units reverse spring acceleration per unit distance per increment
 #else
 	// Remove typical Apple IIe speaker static
-	static const float FRICTION = .02;        
+	static constexpr float FRICTION = .02;        
 	static const Sint32 CHARGE_DURATION = 10/SKIP_CYCLES; 
-	static const float MAGNET_FORCE = 34*SKIP_CYCLES*SKIP_CYCLES;
-	static const float SPRING_FORCE = .0002*SKIP_CYCLES*SKIP_CYCLES;
+	static constexpr float MAGNET_FORCE = 34*SKIP_CYCLES*SKIP_CYCLES;
+	static constexpr float SPRING_FORCE = .0002*SKIP_CYCLES*SKIP_CYCLES;
 #endif
 
 	float pos;                  // Between (-32768) - 32767 for sampling

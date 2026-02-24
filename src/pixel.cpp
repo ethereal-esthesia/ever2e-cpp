@@ -33,44 +33,27 @@ using namespace std;
 
 void PixelSurface::_newSurface( int xSize, int ySize, int bpp )
 {
-
-	Uint32 rmask, gmask, bmask, amask;
-
+	SDL_PixelFormat format;
 	switch( bpp ) {
 
 	case 8:
-		rmask = 0x00000000;
-		gmask = 0x00000000;
-		bmask = 0x00000000;
-		amask = 0x00000000;
+		format = SDL_PIXELFORMAT_INDEX8;
 		break;
 
 	case 15:
-		rmask = 0x0000001f;
-		gmask = 0x000003e0;
-		bmask = 0x00007c00;
-		amask = 0x00000000;
+		format = SDL_PIXELFORMAT_RGB555;
 		break;
 
 	case 16:
-		rmask = 0x0000001f;
-		gmask = 0x000007e0;
-		bmask = 0x0000f800;
-		amask = 0x00000000;
+		format = SDL_PIXELFORMAT_RGB565;
 		break;
 
 	case 24:
-		rmask = 0x000000ff;
-		gmask = 0x0000ff00;
-		bmask = 0x00ff0000;
-		amask = 0x00000000;
+		format = SDL_PIXELFORMAT_RGB24;
 		break;
 
 	case 32:
-		rmask = 0x000000ff;
-		gmask = 0x0000ff00;
-		bmask = 0x00ff0000;
-		amask = 0xff000000;
+		format = SDL_PIXELFORMAT_ARGB8888;
 		break;
 
 	default:
@@ -78,8 +61,7 @@ void PixelSurface::_newSurface( int xSize, int ySize, int bpp )
 		exit(1);
 
 	}
-
-	surface = SDL_CreateRGBSurface(SDL_SWSURFACE, xSize, ySize, bpp, rmask, gmask, bmask, amask);
+	surface = SDL_CreateSurface(xSize, ySize, format);
 	if( surface==NULL ) {
 		std::cerr << "PixelSurface::PixelSurface - Unable to initialize surface - " << SDL_GetError() << std::endl;
 		exit(1);
@@ -121,12 +103,19 @@ PixelSurface::PixelSurface( const char* fileName )
 
 PixelSurface::~PixelSurface()
 {
-	SDL_FreeSurface(surface);
+	if( !locked )
+		SDL_DestroySurface(surface);
 }
 
 void PixelSurface::setPalette( SDL_Color *palette, int entries )
 {	
-	SDL_SetColors(surface, palette, 0, entries);	
+	SDL_Palette *surfacePalette = SDL_GetSurfacePalette(surface);
+	if( surfacePalette == NULL )
+		surfacePalette = SDL_CreateSurfacePalette(surface);
+	if( surfacePalette == NULL || !SDL_SetPaletteColors(surfacePalette, palette, 0, entries) ) {
+		std::cerr << "PixelSurface::setPalette - Unable to set palette - " << SDL_GetError() << std::endl;
+		exit(1);
+	}
 }
 
 void PixelSurface::setGreyPalette()
@@ -138,7 +127,7 @@ void PixelSurface::setGreyPalette()
 		greyPal[k].r = k;
 		greyPal[k].g = k;
 		greyPal[k].b = k;
-		greyPal[k].unused = 0;
+		greyPal[k].a = SDL_ALPHA_OPAQUE;
 	}
 	setPalette(greyPal, 0x100);
 }
@@ -155,20 +144,20 @@ int PixelSurface::getYSize()
 
 int PixelSurface::getBpp()
 {
-	return surface->format->BitsPerPixel;
+	return SDL_BITSPERPIXEL(surface->format);
 }
 
 void PixelSurface::fillSurface( SDL_Color color )
 {
-	Uint32 pixel = SDL_MapRGB(surface->format, color.r, color.g, color.b);
-	SDL_FillRect(surface, NULL, pixel);
+	Uint32 pixel = SDL_MapSurfaceRGB(surface, color.r, color.g, color.b);
+	SDL_FillSurfaceRect(surface, NULL, pixel);
 }
 
 void PixelSurface::resize( int xSize, int ySize )
 {	
 	assert( !locked );
 	/// STUB ///
-	SDL_FreeSurface(surface);
+	SDL_DestroySurface(surface);
 	_newSurface(xSize, ySize, getBpp());
 }
 
@@ -192,11 +181,11 @@ Uint32 PixelSurface::colorToPixel( SDL_Color color )
 {
 	Uint32 pixel;
 	/// STUB
-	if( surface->format->BitsPerPixel==8 )
+	if( SDL_BITSPERPIXEL(surface->format)==8 )
 		pixel = ((Uint16)color.r+color.g+color.b)/3;
 	else
 	///
-	pixel = SDL_MapRGB(surface->format, color.r, color.g, color.b);
+	pixel = SDL_MapSurfaceRGB(surface, color.r, color.g, color.b);
 	return pixel;
 }
 
@@ -208,7 +197,9 @@ SDL_Color PixelSurface::pixelToColor( Uint32 pixel )
 	///	color = pal...;
 	/// }
 	/// else
-	SDL_GetRGB(pixel, surface->format, &color.r, &color.g, &color.b);
+	const SDL_PixelFormatDetails *formatDetails = SDL_GetPixelFormatDetails(surface->format);
+	SDL_GetRGB(pixel, formatDetails, SDL_GetSurfacePalette(surface), &color.r, &color.g, &color.b);
+	color.a = SDL_ALPHA_OPAQUE;
 	return color;
 }
 
@@ -217,7 +208,7 @@ void PixelSurface::putPixel32( int x, int y, Uint32 pixel )
 	// Perform clipping
 	if( (unsigned int) x >= (unsigned int) surface->w || (unsigned int) y >= (unsigned int) surface->h )
 		return;
-	size_t bytes = (surface->format->BitsPerPixel+7)>>3;
+	size_t bytes = (SDL_BITSPERPIXEL(surface->format)+7)>>3;
 	memcpy((Uint8*) surface->pixels + y*(surface->pitch)+x*bytes, &pixel, bytes);
 }
 
@@ -228,7 +219,7 @@ void PixelSurface::putPixelLine32( int x, int y, const Uint32* pixel, int entrie
 	/// Should parse out 1, 2, 3, and 4 byte lines, not just 4 byte ///
 	if( (unsigned int) x >= (unsigned int) surface->w || (unsigned int) x+entries > (unsigned int) surface->w || (unsigned int) y >= (unsigned int) surface->h )
 		return;
-	size_t bytes = (surface->format->BitsPerPixel+7)>>3;
+	size_t bytes = (SDL_BITSPERPIXEL(surface->format)+7)>>3;
 	memcpy((Uint8*) surface->pixels + y*(surface->pitch)+x*bytes, pixel, bytes*entries);
 }
 
@@ -238,7 +229,7 @@ Uint32 PixelSurface::getPixel32( int x, int y )
 	if( (unsigned int) x >= (unsigned int) surface->w || (unsigned int) y >= (unsigned int) surface->h )
 		return 0x0000;
 	Uint32 pixel;
-	size_t bytes = (surface->format->BitsPerPixel+7)>>3;
+	size_t bytes = (SDL_BITSPERPIXEL(surface->format)+7)>>3;
 	memcpy(&pixel, (Uint8*) surface->pixels + y*(surface->pitch)+x*bytes, bytes);
 	return pixel;
 }
@@ -261,10 +252,23 @@ void PixelSurface::copy( PixelSurface& copySurface, int x, int y )
 	dispRect.w = copySurface.surface->w;
 	dispRect.h = copySurface.surface->h;
 	
-	if( SDL_BlitSurface(copySurface.surface, NULL, surface, &dispRect) != 0 ) {
+	if( !SDL_BlitSurface(copySurface.surface, NULL, surface, &dispRect) ) {
 		std::cerr << "PixelSurface::copy - Unable to copy surface: " << SDL_GetError() << std::endl;
 		exit(1);
 	}
 		
+}
+
+void PixelSurface::setSurface( SDL_Surface* newSurface )
+{
+	if( !locked ) {
+		std::cerr << "PixelSurface::setSurface - Dynamic surface swap requires locked surface mode.\n";
+		exit(1);
+	}
+	if( newSurface == NULL ) {
+		std::cerr << "PixelSurface::setSurface - Invalid surface given.\n";
+		exit(1);
+	}
+	surface = newSurface;
 }
 

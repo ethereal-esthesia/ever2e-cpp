@@ -30,17 +30,17 @@
 
 #include <iostream>
 #include <cassert>
+#include <unordered_map>
 #include "SDL.h"
 
 
 class KeyTrans2e
 {
 
-	int keyStateTotal;         // Total number of SDL host state keys
-	Sint8* keyConvTable;       // Arrays for key state to apple key state conversions
-	Sint8* keyConvTableCaps;  
-	Sint8* keyConvTableShift;  
-	Sint8* keyConvTableCtrl;
+	std::unordered_map<SDL_Keycode, Sint8> keyConvTable;
+	std::unordered_map<SDL_Keycode, Sint8> keyConvTableCaps;
+	std::unordered_map<SDL_Keycode, Sint8> keyConvTableShift;
+	std::unordered_map<SDL_Keycode, Sint8> keyConvTableCtrl;
 
 public:
 
@@ -48,13 +48,13 @@ public:
 	
 	~KeyTrans2e();
 
-	bool translate( const SDL_keysym & hostKey, Uint8 & key2e );
+	bool translate( SDL_Keycode key, SDL_Keymod mod, Uint8 & key2e );
 
-	SDLKey getOpenAppleKey();
+	SDL_Keycode getOpenAppleKey();
 	
-	SDLKey getClosedAppleKey();
+	SDL_Keycode getClosedAppleKey();
 	
-	SDLKey getResetKey();
+	SDL_Keycode getResetKey();
 	
 };
 

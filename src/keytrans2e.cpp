@@ -32,21 +32,6 @@ using namespace std;
 
 KeyTrans2e::KeyTrans2e()
 {
-
-	SDL_GetKeyState(&keyStateTotal);
-	if( keyStateTotal==0 ) {
-		cerr << "Unable to access key states.\n";
-		exit(1);
-	}
-	keyConvTable = new Sint8[keyStateTotal];
-	keyConvTableShift = new Sint8[keyStateTotal];
-	keyConvTableCtrl = new Sint8[keyStateTotal];
-	keyConvTableCaps = new Sint8[keyStateTotal];
-
-	// Designate characters as not supported by default
-	for( int k = 0; k<keyStateTotal; k++ )
-		keyConvTable[k] = -1;
-
 	// Generate list of non-modified characters
 	keyConvTable[SDLK_LEFT] = 0x08;
 	keyConvTable[SDLK_TAB] = 0x09;
@@ -77,25 +62,25 @@ KeyTrans2e::KeyTrans2e()
 	keyConvTable[SDLK_KP_DIVIDE] = 0x2f;
 	keyConvTable[SDLK_SLASH] = 0x2f;
 	keyConvTable[SDLK_0] = 0x30;
-	keyConvTable[SDLK_KP0] = 0x30;
+	keyConvTable[SDLK_KP_0] = 0x30;
 	keyConvTable[SDLK_1] = 0x31;
-	keyConvTable[SDLK_KP1] = 0x31;
+	keyConvTable[SDLK_KP_1] = 0x31;
 	keyConvTable[SDLK_2] = 0x32;
-	keyConvTable[SDLK_KP2] = 0x32;
+	keyConvTable[SDLK_KP_2] = 0x32;
 	keyConvTable[SDLK_3] = 0x33;
-	keyConvTable[SDLK_KP3] = 0x33;
+	keyConvTable[SDLK_KP_3] = 0x33;
 	keyConvTable[SDLK_4] = 0x34;
-	keyConvTable[SDLK_KP4] = 0x34;
+	keyConvTable[SDLK_KP_4] = 0x34;
 	keyConvTable[SDLK_5] = 0x35;
-	keyConvTable[SDLK_KP5] = 0x35;
+	keyConvTable[SDLK_KP_5] = 0x35;
 	keyConvTable[SDLK_6] = 0x36;
-	keyConvTable[SDLK_KP6] = 0x36;
+	keyConvTable[SDLK_KP_6] = 0x36;
 	keyConvTable[SDLK_7] = 0x37;
-	keyConvTable[SDLK_KP7] = 0x37;
+	keyConvTable[SDLK_KP_7] = 0x37;
 	keyConvTable[SDLK_8] = 0x38;
-	keyConvTable[SDLK_KP8] = 0x38;
+	keyConvTable[SDLK_KP_8] = 0x38;
 	keyConvTable[SDLK_9] = 0x39;
-	keyConvTable[SDLK_KP9] = 0x39;
+	keyConvTable[SDLK_KP_9] = 0x39;
 	keyConvTable[SDLK_COLON] = 0x3a;
 	keyConvTable[SDLK_SEMICOLON] = 0x3b;
 	keyConvTable[SDLK_LESS] = 0x3c;
@@ -140,10 +125,8 @@ KeyTrans2e::KeyTrans2e()
 	keyConvTable[SDLK_DELETE] = 0x7f;
 
 	// Copy non-modified keys to other key sets by default to simplify assignment
-	for( int k = 0; k<keyStateTotal; k++ ) {
-		keyConvTableCaps[k] = keyConvTable[k];
-		keyConvTableCtrl[k] = keyConvTable[k];
-	}
+	keyConvTableCaps = keyConvTable;
+	keyConvTableCtrl = keyConvTable;
 
 	// Add in key changes for caps-lock characters
 	keyConvTableCaps[SDLK_a] = 0x41;
@@ -174,8 +157,7 @@ KeyTrans2e::KeyTrans2e()
 	keyConvTableCaps[SDLK_z] = 0x5a;
 	
 	// Copy caps-lock keys to shift keys
-	for( int k = 0; k<keyStateTotal; k++ )
-		keyConvTableShift[k] = keyConvTableCaps[k];
+	keyConvTableShift = keyConvTableCaps;
 	
 	// Add in key changes for shift characters
 	keyConvTableShift[SDLK_1] = 0x21;
@@ -237,36 +219,30 @@ KeyTrans2e::KeyTrans2e()
 
 KeyTrans2e::~KeyTrans2e()
 {
-	delete [] keyConvTable;
-	delete [] keyConvTableShift;
-	delete [] keyConvTableCtrl;
-	delete [] keyConvTableCaps;
 }
 
-bool KeyTrans2e::translate( const SDL_keysym & hostKey, Uint8 & key2e )
+bool KeyTrans2e::translate( SDL_Keycode key, SDL_Keymod mod, Uint8 & key2e )
 {
-
-	Sint8* table;
-	SDLKey key = hostKey.sym;
-	assert(key<keyStateTotal);
+	const std::unordered_map<SDL_Keycode, Sint8>* table;
 	
 	// If key has an ASCII code reference return it
-	if( hostKey.mod & (KMOD_LCTRL|KMOD_RCTRL) ) {
-		if( hostKey.mod & (KMOD_LSHIFT|KMOD_RSHIFT ) ) {
+	if( mod & (KMOD_LCTRL|KMOD_RCTRL) ) {
+		if( mod & (KMOD_LSHIFT|KMOD_RSHIFT ) ) {
 			if( key==SDLK_2 ) key = SDLK_AT;
 			else if( key==SDLK_6 ) key = SDLK_CARET;
 			else if( key==SDLK_MINUS ) key = SDLK_UNDERSCORE;
 		}
-		table = keyConvTableCtrl;
+		table = &keyConvTableCtrl;
 	}
-	else if( hostKey.mod & (KMOD_LSHIFT|KMOD_RSHIFT ) )
-		table = keyConvTableShift;
-	else if( hostKey.mod & KMOD_CAPS )
-		table = keyConvTableCaps;
+	else if( mod & (KMOD_LSHIFT|KMOD_RSHIFT ) )
+		table = &keyConvTableShift;
+	else if( mod & KMOD_CAPS )
+		table = &keyConvTableCaps;
 	else
-		table = keyConvTable;
-	if( table[key]>=0 ) {
-		key2e = (Uint8) table[key];
+		table = &keyConvTable;
+	auto keyIt = table->find(key);
+	if( keyIt != table->end() && keyIt->second>=0 ) {
+		key2e = (Uint8) keyIt->second;
 		return true;
 	}
 	else
@@ -274,17 +250,17 @@ bool KeyTrans2e::translate( const SDL_keysym & hostKey, Uint8 & key2e )
 
 }
 
-SDLKey KeyTrans2e::getOpenAppleKey()
+SDL_Keycode KeyTrans2e::getOpenAppleKey()
 {
 	return SDLK_LALT;
 }
 
-SDLKey KeyTrans2e::getClosedAppleKey()
+SDL_Keycode KeyTrans2e::getClosedAppleKey()
 {
 	return SDLK_RALT;
 }
 
-SDLKey KeyTrans2e::getResetKey()
+SDL_Keycode KeyTrans2e::getResetKey()
 {
 	return SDLK_F12;
 }
