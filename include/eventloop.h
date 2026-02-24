@@ -105,7 +105,6 @@ class EventLoop
 	std::map<SDL_Keycode, Uint8> translatedDownKeys;
 	std::deque<Uint8> pasteQueue;
 	bool pasteWasActive;
-	int pasteDrainWatchCycles;
 	bool pasteClearPending;
 		
 #ifdef _BENCHMARK_
