@@ -227,6 +227,7 @@ EventLoop::EventLoop()
 	elapsedTimeNanoseconds = 0;
 
 	idleCycle = false;
+	unthrottled = false;
 	
 	exitStatus = false;
 	idleState = false;
@@ -295,14 +296,25 @@ void EventLoop::cycle()
 	if( !(int(times)&0xff) )
 		cout << int(timer/times/bench*100.+.5) << "%        \r";
 #else
-	// Sync host/guest clock
-	Uint32 clock = manager->getClock();
-	while( clock==lastClock ) {
-		SDL_Delay(1);
-		clock = manager->getClock();
+	Uint32 elapsedTime = 0;
+	if( unthrottled ) {
+		// Fast path for bounded headless automation: do not wait for host clock ticks.
+		Uint32 clock = manager->getClock();
+		elapsedTime = clock - lastClock;
+		lastClock = clock;
+		if( elapsedTime==0 )
+			elapsedTime = 1;
 	}
-	Uint32 elapsedTime = clock - lastClock;
-	lastClock = clock;
+	else {
+		// Sync host/guest clock
+		Uint32 clock = manager->getClock();
+		while( clock==lastClock ) {
+			SDL_Delay(1);
+			clock = manager->getClock();
+		}
+		elapsedTime = clock - lastClock;
+		lastClock = clock;
+	}
 #endif
 
 	// Cap on catch-up rate to prevent unnecessary speed-up in case of a long OS pause, possibly caused by:
@@ -715,6 +727,11 @@ void EventLoop::dismissHostMenu()
 {
 	if( hostMenu!=MENU_OFF )
 		_toggleHostInterface(MENU_OFF);
+}
+
+void EventLoop::setUnthrottled( bool enable )
+{
+	unthrottled = enable;
 }
 
 void EventLoop::queuePasteKey( Uint8 key )

@@ -258,6 +258,8 @@ int main( int args, char** argv )
 	}
 
 	EventLoop emulator;
+	if( HeadlessMode )
+		emulator.setUnthrottled(true);
 
 	if( InputFileName!=NULL || CpuStepLimit>=0 || !HaltExecutionPcs.empty() ) {
 		// Automated runs should start from the emulation screen, not the host help menu.
