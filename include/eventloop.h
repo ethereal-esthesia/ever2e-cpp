@@ -107,6 +107,7 @@ class EventLoop
 	bool pasteWasActive;
 	bool pasteClearPending;
 	int pasteClearDelayCycles;
+	Uint32 pasteConsumeCounterSeen;
 		
 #ifdef _BENCHMARK_
 	double times;

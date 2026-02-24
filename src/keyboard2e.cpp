@@ -47,6 +47,8 @@ Keyboard2e::Keyboard2e( Monitor560x192* monitor, Cpu65c02* cpu )
 	longDelay = false;        
 	delayCounter = 0;      
 	keyPressed = false;       
+	keyConsumed = false;
+	consumeCounter = 0;
 	keyDown = 0;        
 	overflowByteLast = monitor->getOverflowCount();
 	resetActive = false;
@@ -62,6 +64,7 @@ void Keyboard2e::keyPress( Uint8 key )
 	keyDown++;
 	keyCode = key;
 	keyPressed = true;
+	keyConsumed = false;
 	longDelay = true;
 	delayCounter = 0;
 }
@@ -77,6 +80,11 @@ void Keyboard2e::keyRelease( Uint8 key )
 		delayCounter = 0;
 	}
 	
+}
+
+void Keyboard2e::queueTypedKey( Uint8 key )
+{
+	queuedTypedKeys.push_back(key);
 }
 	
 void Keyboard2e::setCtrlKeyState( CtrlKey2e keys )
@@ -155,11 +163,37 @@ Uint8 Keyboard2e::getKeyboard()
 	return (keyPressed<<7) | keyCode;
 }
 
+void Keyboard2e::consumeKeyboard()
+{
+	consumeCounter++;
+	if( !keyPressed && !queuedTypedKeys.empty() ) {
+		keyCode = queuedTypedKeys.front();
+		queuedTypedKeys.pop_front();
+		keyPressed = true;
+		keyConsumed = true;
+		return;
+	}
+	if( keyPressed )
+		keyConsumed = true;
+}
+
+bool Keyboard2e::hasPendingKey() const
+{
+	return keyPressed;
+}
+
+Uint32 Keyboard2e::getConsumeCounter() const
+{
+	return consumeCounter;
+}
+
 void Keyboard2e::putStrobe()
 {
 
-	if( keyPressed ) {
+	// Match IIe queue semantics: clear strobe only after KEYBOARD ($C000) consumed it.
+	if( keyPressed && keyConsumed ) {
 		keyPressed = false;
+		keyConsumed = false;
 		if( longDelay )
 			delayCounter = 3;
 		else
@@ -194,10 +228,15 @@ void Keyboard2e::store( SaveState& state )
 	state.writeBool(longDelay);
 	state.write32((Uint32)delayCounter);
 	state.writeBool(keyPressed);
+	state.writeBool(keyConsumed);
+	state.write32(consumeCounter);
 	state.write32((Uint32)keyDown);
 	state.write8(overflowByteLast);
 	state.write32((Uint32)resetActive);
 	state.write16((Uint16)ctrlKeyState);
+	state.write32((Uint32)queuedTypedKeys.size());
+	for( size_t i = 0; i<queuedTypedKeys.size(); i++ )
+		state.write8(queuedTypedKeys[i]);
 }
 
 int Keyboard2e::restore( SaveState& state )
@@ -206,9 +245,15 @@ int Keyboard2e::restore( SaveState& state )
 	longDelay = state.readBool();
 	delayCounter = (int) state.read32();
 	keyPressed = state.readBool();
+	keyConsumed = state.readBool();
+	consumeCounter = state.read32();
 	keyDown = (int) state.read32();
 	overflowByteLast = state.read8();
 	resetActive = (int) state.read32();
 	ctrlKeyState = (CtrlKey2e) state.read16();
+	queuedTypedKeys.clear();
+	Uint32 queuedSize = state.read32();
+	for( Uint32 i = 0; i<queuedSize; i++ )
+		queuedTypedKeys.push_back(state.read8());
 	return 0;
 }
