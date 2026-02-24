@@ -25,6 +25,7 @@
  
 
 #include "mon560x192.h"
+#include <vector>
 
 
 using namespace std;
@@ -1175,6 +1176,18 @@ void Monitor560x192::cycle()
 
 	if( idleState )
 		return;
+
+	// Ensure no stale edge pixels survive into the next frame when the window surface
+	// backend changes behavior (e.g. SDL3). This is render-only; scan timing is unchanged.
+	if( hRefreshCount==0 && vRefreshCount==0 ) {
+		const int surfaceW = surface->getXSize();
+		const int surfaceH = surface->getYSize();
+		static std::vector<Uint32> blankLine;
+		if( (int)blankLine.size() < surfaceW )
+			blankLine.resize(surfaceW, 0);
+		for( int y = 0; y<surfaceH; y++ )
+			surface->putPixelLine32(0, y, blankLine.data(), surfaceW);
+	}
 
 	if( hRefreshCount<HORIZONTAL_BLANK && vRefreshCount<VERTICAL_BLANK ) {
 	

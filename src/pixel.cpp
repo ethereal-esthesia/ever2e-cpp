@@ -214,13 +214,30 @@ void PixelSurface::putPixel32( int x, int y, Uint32 pixel )
 
 void PixelSurface::putPixelLine32( int x, int y, const Uint32* pixel, int entries )
 {
-	// Perform clipping
-	/// Should truncate clipped line ///
-	/// Should parse out 1, 2, 3, and 4 byte lines, not just 4 byte ///
-	if( (unsigned int) x >= (unsigned int) surface->w || (unsigned int) x+entries > (unsigned int) surface->w || (unsigned int) y >= (unsigned int) surface->h )
+	// Perform clipping; truncate partially visible spans instead of dropping them.
+	if( y < 0 || y >= surface->h || entries<=0 )
 		return;
+	int srcOffset = 0;
+	if( x < 0 ) {
+		srcOffset = -x;
+		entries -= srcOffset;
+		x = 0;
+	}
+	if( x >= surface->w || entries<=0 )
+		return;
+	if( x + entries > surface->w )
+		entries = surface->w - x;
+	if( entries<=0 )
+		return;
+
 	size_t bytes = (SDL_BITSPERPIXEL(surface->format)+7)>>3;
-	memcpy((Uint8*) surface->pixels + y*(surface->pitch)+x*bytes, pixel, bytes*entries);
+	Uint8* dst = (Uint8*) surface->pixels + y*(surface->pitch)+x*bytes;
+	if( bytes==sizeof(Uint32) ) {
+		memcpy(dst, pixel+srcOffset, bytes*entries);
+		return;
+	}
+	for( int i = 0; i<entries; i++ )
+		memcpy(dst+i*bytes, &pixel[i+srcOffset], bytes);
 }
 
 Uint32 PixelSurface::getPixel32( int x, int y )
@@ -228,7 +245,7 @@ Uint32 PixelSurface::getPixel32( int x, int y )
 	// Perform clipping
 	if( (unsigned int) x >= (unsigned int) surface->w || (unsigned int) y >= (unsigned int) surface->h )
 		return 0x0000;
-	Uint32 pixel;
+	Uint32 pixel = 0;
 	size_t bytes = (SDL_BITSPERPIXEL(surface->format)+7)>>3;
 	memcpy(&pixel, (Uint8*) surface->pixels + y*(surface->pitch)+x*bytes, bytes);
 	return pixel;

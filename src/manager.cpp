@@ -139,6 +139,12 @@ void EventManager::getVideoParam( int &xSize, int &ySize, int &bpp )
 
 void EventManager::videoRefresh()
 {
+	SDL_Surface* latestSurface = SDL_GetWindowSurface(window);
+	if( latestSurface != NULL && latestSurface != displaySurface ) {
+		displaySurface = latestSurface;
+		if( displaySurfaceClass != NULL )
+			displaySurfaceClass->setSurface(displaySurface);
+	}
 	SDL_UpdateWindowSurface(window);
 }
 
