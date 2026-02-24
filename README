@@ -38,6 +38,7 @@ Notes:
 - `run_smoke.sh` runs the opcode smoke paste-loader with default halt addresses:
   - PASS loop: `0x33D2`
   - FAIL loop: `0x33C0`
+  - Runs in unthrottled headless mode for faster bounded runs
   - Override with env vars if needed:
     - `STEPS=120000000 ./scripts/macos/run_smoke.sh`
     - `HALT_EXECUTION=0x1234,0x5678 ./scripts/macos/run_smoke.sh`

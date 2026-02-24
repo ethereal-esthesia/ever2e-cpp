@@ -97,6 +97,7 @@ class EventLoop
 	bool exitStatus;
 	bool idleState;
 	bool idleCycle;		
+	bool unthrottled;
 
 	Sint16 hue;
 	Sint16 defaultHue;
@@ -140,6 +141,8 @@ public:
 	void requestExit();
 
 	void dismissHostMenu();
+
+	void setUnthrottled( bool enable );
 
 	void queuePasteKey( Uint8 key );
 
