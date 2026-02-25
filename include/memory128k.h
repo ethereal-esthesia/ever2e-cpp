@@ -68,6 +68,7 @@ class Memory128k
 	class Keyboard2e* keyboard;
 
 	unsigned int toggleMod;
+	bool deterministicOpenBusHigh;
 
 	int accessCount;
 	bool dumpOnDestroy;
@@ -105,6 +106,8 @@ class Memory128k
 		
 	Uint8 _randRead7bit();
 		// Generate 7 low bits of random default read to simulate Apple IIe undefined address read
+
+	Uint8 _readFloatingBus();
 		
 	void _commitSwitches();
 	
@@ -204,6 +207,10 @@ public:
 	void dumpMem();
 
 	void setDumpOnDestroy( bool enabled );
+
+	void setDeterministicOpenBusHigh( bool enabled );
+
+	bool getDeterministicOpenBusHigh() const;
 	
 };
 	

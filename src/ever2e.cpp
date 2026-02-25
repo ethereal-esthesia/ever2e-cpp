@@ -49,6 +49,7 @@ Uint16 TraceStartPc = 0;
 bool TraceStarted = false;
 ofstream TraceFileOut;
 bool HeadlessMode = false;
+bool DeterministicOpenBus = false;
 vector<Uint16> HaltExecutionPcs;
 vector<Uint16> RequiredHaltPcs;
 bool HaltedAtExecutionPc = false;
@@ -225,7 +226,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -262,6 +263,10 @@ int main( int args, char** argv )
 		}
 		if( arg == "--headless" ) {
 			HeadlessMode = true;
+			continue;
+		}
+		if( arg == "--deterministic-open-bus" ) {
+			DeterministicOpenBus = true;
 			continue;
 		}
 		if( arg == "--steps" ) {
@@ -402,6 +407,7 @@ int main( int args, char** argv )
 	}
 
 	EventLoop emulator;
+	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);
 	if( !TraceFilePath.empty() ) {
 		TraceFileOut.open(TraceFilePath.c_str(), ios::out | ios::trunc);
 		if( !TraceFileOut.is_open() ) {
