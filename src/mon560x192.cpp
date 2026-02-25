@@ -1011,6 +1011,7 @@ void Monitor560x192::resetAll()
 	vRefreshCount = 0;
 	overflowCount = 0;
 	xc = 0;
+	lastRead = 0;
 	
 	loresReadAddress = getAddressLo40(readPage, 0, 0);
 	hiresReadAddress = getAddressHi40(readPage, 0, 0);
@@ -1025,6 +1026,11 @@ void Monitor560x192::resetAll()
 		for( int x = xOff; x<xOff+HORIZONTAL_BLANK*14; x++ )
 			surface->putPixel32(x, y, 0x00000000);
 	
+}
+
+Uint8 Monitor560x192::getLastRead() const
+{
+	return lastRead;
 }
 
 /**
@@ -1204,7 +1210,8 @@ void Monitor560x192::cycle()
 				// Shift bit 7 is ignored here, and in the Apple IIe (even with custom character ROM's put in place)
 				readOffset = ( flashOn && textType==NORMAL_TEXT ) ? (FLASH_TEXT<<11) : (textType<<11);
 				readOffset += vRefreshCount&0x07;
-				word14bit = CHAR_MAP[ readOffset + (memory->getMemPassive(0, loresReadAddress)<<3) ];
+				lastRead = memory->getMemPassive(0, loresReadAddress);
+				word14bit = CHAR_MAP[ readOffset + (lastRead<<3) ];
 				word14bit = HGR_TO_DHGR[word14bit&0x7f];
 				hiresCarryBit = false;
 				break;
@@ -1214,18 +1221,21 @@ void Monitor560x192::cycle()
 					currentPal = COLOR80_PAL;
 				readOffset = ( flashOn && textType==NORMAL_TEXT ) ? (FLASH_TEXT<<11) : (textType<<11);
 				readOffset += vRefreshCount&0x07;
-				word14bit = CHAR_MAP[ readOffset + (memory->getMemPassive(1, loresReadAddress)<<3) ];
-				word14bit |= CHAR_MAP[ readOffset + (memory->getMemPassive(0, loresReadAddress)<<3) ] << 7;
+				lastRead = memory->getMemPassive(1, loresReadAddress);
+				word14bit = CHAR_MAP[ readOffset + (lastRead<<3) ];
+				lastRead = memory->getMemPassive(0, loresReadAddress);
+				word14bit |= CHAR_MAP[ readOffset + (lastRead<<3) ] << 7;
 				hiresCarryBit = false;
 				break;
 
 			case LORES40:
 			case LORES40M:
 				readOffset = hRefreshCount&0x01;
+				lastRead = memory->getMemPassive(0, loresReadAddress);
 				if( vRefreshCount&0x04 )
-					word14bit = GR_TO_DHGR[readOffset+((memory->getMemPassive(0, loresReadAddress)>>4)<<1)];
+					word14bit = GR_TO_DHGR[readOffset+((lastRead>>4)<<1)];
 				else
-					word14bit = GR_TO_DHGR[readOffset+((memory->getMemPassive(0, loresReadAddress)&0x0f)<<1)];
+					word14bit = GR_TO_DHGR[readOffset+((lastRead&0x0f)<<1)];
 				hiresCarryBit = false;
 				if( currentDisplayType==LORES40M )
 					word14bit = HGR_TO_DHGR[word14bit&0x7f];
@@ -1236,19 +1246,24 @@ void Monitor560x192::cycle()
 					currentPal = COLOR80_PAL;
 				readOffset = hRefreshCount&0x01;
 				if( vRefreshCount&0x04 ) {
-					word14bit = 0x7f & GR_TO_DHGR[readOffset+((memory->getMemPassive(1, loresReadAddress)>>4)<<1)];
-					word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((memory->getMemPassive(0, loresReadAddress)>>4)<<1)] ) << 7;
+					lastRead = memory->getMemPassive(1, loresReadAddress);
+					word14bit = 0x7f & GR_TO_DHGR[readOffset+((lastRead>>4)<<1)];
+					lastRead = memory->getMemPassive(0, loresReadAddress);
+					word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((lastRead>>4)<<1)] ) << 7;
 				}
 				else {
-					word14bit = 0x7f & GR_TO_DHGR[readOffset+((memory->getMemPassive(1, loresReadAddress)&0x0f)<<1)];
-					word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((memory->getMemPassive(0, loresReadAddress)&0x0f)<<1)] ) << 7;
+					lastRead = memory->getMemPassive(1, loresReadAddress);
+					word14bit = 0x7f & GR_TO_DHGR[readOffset+((lastRead&0x0f)<<1)];
+					lastRead = memory->getMemPassive(0, loresReadAddress);
+					word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((lastRead&0x0f)<<1)] ) << 7;
 				}
 				hiresCarryBit = false;
 				break;
 
 			case HIRES40:
 			case HIRES40M:
-				word14bit = memory->getMemPassive(0, hiresReadAddress);
+				lastRead = memory->getMemPassive(0, hiresReadAddress);
+				word14bit = lastRead;
 				shift = word14bit&0x80;
 				word14bit = HGR_TO_DHGR[word14bit&0x7f];
 				if( currentDisplayType==HIRES40 && shift ) {
@@ -1262,8 +1277,10 @@ void Monitor560x192::cycle()
 			case HIRES80:
 				if( palType == COLOR_PAL )
 					currentPal = COLOR80_PAL;
-				word14bit = memory->getMemPassive(1, hiresReadAddress) & 0x7f;
-				word14bit |= ( memory->getMemPassive(0, hiresReadAddress) & 0x7f ) << 7;
+				lastRead = memory->getMemPassive(1, hiresReadAddress);
+				word14bit = lastRead & 0x7f;
+				lastRead = memory->getMemPassive(0, hiresReadAddress);
+				word14bit |= ( lastRead & 0x7f ) << 7;
 				hiresCarryBit = false;
 				break;
 

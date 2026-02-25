@@ -98,6 +98,7 @@ private:
 	Uint16 readPage;  // Can be 1 or 2
 	Uint16 loresReadAddress;
 	Uint16 hiresReadAddress;
+	Uint8 lastRead;
 
 	enum PalType {MONO_PAL, GREEN_PAL, COLOR_PAL, COLOR80_PAL}
 		palType;
@@ -131,6 +132,8 @@ public:
 	bool getVbl();
 	
 	Uint8 getOverflowCount();
+
+	Uint8 getLastRead() const;
 
 	bool getScanlineSkip();
 	

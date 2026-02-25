@@ -253,7 +253,8 @@ Uint8 Memory128k::_readIo( Uint16 address )
 			
 		case 0xc019:
 			// Read VBL
-			return keyboard->getKeyboard() & 0x7f | (monitor->getVbl()<<7);
+			// Apple IIe RDVBL/VBLBAR ($C019) reports bit 7 high when not in VBL.
+			return keyboard->getKeyboard() & 0x7f | ((!monitor->getVbl())<<7);
 			
 		case 0xc01a:
 			// Read TEXT
@@ -773,8 +774,7 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 #ifdef _MEMORY_TEST_OUTPUT	
 				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
 #endif	
-				// Match Apple IIe floating-bus behavior used by ROM startup checks.
-				return 0xff;
+				return _readFloatingBus();
 			}
 			
 		}
@@ -796,8 +796,7 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 #ifdef _MEMORY_TEST_OUTPUT	
 				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
 #endif	
-				// Match Apple IIe floating-bus behavior used by ROM startup checks.
-				return 0xff;
+				return _readFloatingBus();
 			}
 		}
 	}
@@ -832,8 +831,7 @@ Uint8 Memory128k::_readExpMem( Uint16 address )
 	cerr << "Warning: read from expansion memory at " << hex << setw(4) << (int) address << endl;
 #endif
 
-	// No expansion ROM selected: emulate floating bus high.
-	return 0xff;
+	return _readFloatingBus();
 	
 /*
 		
@@ -932,6 +930,15 @@ Uint8 Memory128k::_randRead7bit()
 	return _randRead()&0x7f;
 }
 
+Uint8 Memory128k::_readFloatingBus()
+{
+	if( deterministicOpenBusHigh )
+		return 0xff;
+	if( monitor!=NULL )
+		return monitor->getLastRead();
+	return 0x00;
+}
+
 /// A separate command could be used to dump ROM ///
 
 void Memory128k::dumpMem()
@@ -983,6 +990,7 @@ Memory128k::Memory128k()
 	// See Sather 5-26 for basic memory layout
 
 	this->monitor = NULL;
+	deterministicOpenBusHigh = false;
 	const MemoryBlock MEMORY_LAYOUT[] = 
 	{
 		{ 0x00,   &Memory128k::_readZpSt,    &Memory128k::_writeZpSt   },  // Zero-page and stack
@@ -1099,4 +1107,14 @@ int Memory128k::restore( SaveState &state )
 void Memory128k::setDumpOnDestroy( bool enabled )
 {
 	dumpOnDestroy = enabled;
+}
+
+void Memory128k::setDeterministicOpenBusHigh( bool enabled )
+{
+	deterministicOpenBusHigh = enabled;
+}
+
+bool Memory128k::getDeterministicOpenBusHigh() const
+{
+	return deterministicOpenBusHigh;
 }
