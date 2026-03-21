@@ -71,6 +71,8 @@ Notes:
 - `run.sh` and `run_microcode_tests.sh` rebuild by default to avoid stale binaries.
   Set `REBUILD_ON_RUN=0` to skip rebuild.
 - The run script starts from "release/" so ROM/assets resolve correctly.
+- `run.sh` auto-resolves `.emu` paths from `release/` and defaults to
+  `Apple2eNoSlots.emu` if omitted.
 - The emulator now requires a positional `.emu` config path (no `--emu` flag).
 - A default config is provided at `release/Apple2eNoSlots.emu`.
 - ROM loading follows `binary.file` from the `.emu` config (relative paths are
