@@ -65,6 +65,7 @@ vector<Uint16> RequiredHaltPcs;
 bool HaltedAtExecutionPc = false;
 Uint16 HaltedExecutionPc = 0;
 string EmuConfigPath;
+string RomFileOverridePath;
 
 struct EmuConfig
 {
@@ -424,6 +425,7 @@ int main( int args, char** argv )
 	CLI::App app("Ever2e");
 	app.set_help_flag("--help", "Show help");
 	app.add_option("emu-path", EmuConfigPath, "Path to required .emu config")->required();
+	app.add_option("--rom-file", RomFileOverridePath, "Override ROM path (replaces binary.file from .emu)");
 	app.add_option("--paste-file", pasteFileArg, "Paste script file path");
 	app.add_option("--guest-core-dump", GuestCoreDumpFile, "Write guest core dump to file");
 	app.add_flag("--print-text-at-exit", PrintTextAtExit, "Print text screen at exit");
@@ -520,6 +522,8 @@ int main( int args, char** argv )
 	map<string, string>::const_iterator binIt = emuConfig.properties.find("binary.file");
 	if( binIt!=emuConfig.properties.end() && !trimString(binIt->second).empty() )
 		romPath = resolveEmuRelativePath(emuConfig, trimString(binIt->second));
+	if( !RomFileOverridePath.empty() )
+		romPath = RomFileOverridePath;
 	EventLoop emulator(SelectedCpuProfile, romPath);
 	installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
 	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);

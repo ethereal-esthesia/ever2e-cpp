@@ -8,7 +8,7 @@ RELEASE_DIR="$ROOT_DIR/release"
 REBUILD_ON_RUN="${REBUILD_ON_RUN:-1}"
 
 if [[ "$REBUILD_ON_RUN" == "1" || ! -x "$OUTPUT_BIN" ]]; then
-  "$ROOT_DIR/scripts/macos/build.sh"
+  BUILD_TARGETS="${BUILD_TARGETS:-ever2e}" "$ROOT_DIR/scripts/macos/build.sh"
 fi
 
 if [[ ! -d "$RELEASE_DIR" ]]; then

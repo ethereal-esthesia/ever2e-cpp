@@ -47,13 +47,16 @@ From the repository root:
 
     ./scripts/macos/build.sh
     ./scripts/macos/run.sh
-    ./scripts/macos/run_microcode_tests.sh
     ./scripts/macos/run_smoke.sh
+    ./scripts/macos/run_main_tests.sh
+    ./scripts/macos/run_microcode_tests.sh
+    ./scripts/macos/run_generated_tests.sh
 
 Direct binary usage (required positional `.emu` config):
 
     ./build/macos/ever2e release/Apple2eNoSlots.emu
     ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
+    ./build/macos/ever2e release/Apple2eNoSlots.emu --rom-file /absolute/path/to/APPLE2E.ROM --headless --steps 1000
 
 Optional cleanup:
 
@@ -68,17 +71,36 @@ Notes:
 - A default config is provided at `release/Apple2eNoSlots.emu`.
 - ROM loading follows `binary.file` from the `.emu` config (relative paths are
   resolved from the `.emu` file directory).
+- `--rom-file` overrides `.emu` `binary.file` for a run.
+- Scripts accept `ROM_FILE=/absolute/path/to/APPLE2E.ROM` and pass it through.
+- Scripts also support `ROM_GENERATED=loop` to generate a temporary zero-padded
+  16KB ROM that loops forever at `$C000` (not committed to repo).
 - If SDL is installed in a non-standard location, set PKG_CONFIG_PATH before
   running build.sh.
-- `run_smoke.sh` runs the opcode smoke paste-loader with default halt addresses:
+- `run_smoke.sh` is a quick headless sanity check:
+  - default `ROM_GENERATED=loop` (temporary 16KB loop ROM, not committed)
+  - default `STEPS=12`
+  - default final PC check `REQUIRE_HALT_PC=0xC000`
+- `run_main_tests.sh` is the primary full test entrypoint:
+  - `run_microcode_tests.sh`
+  - `run_generated_tests.sh`
+- `run_generated_tests.sh` runs the long generated test paste-loader with default
+  halt addresses:
   - PASS loop: `0x33D2`
   - FAIL loop: `0x33C0`
   - Runs in unthrottled headless mode for faster bounded runs
   - Uses `release/Apple2eNoSlots.emu` by default (override with `EMU_FILE=...`)
   - Override with env vars if needed:
-    - `STEPS=120000000 ./scripts/macos/run_smoke.sh`
-    - `EMU_FILE=/path/to/config.emu ./scripts/macos/run_smoke.sh`
-    - `HALT_EXECUTION=0x1234,0x5678 ./scripts/macos/run_smoke.sh`
+    - `STEPS=120000000 ./scripts/macos/run_generated_tests.sh`
+    - `EMU_FILE=/path/to/config.emu ./scripts/macos/run_generated_tests.sh`
+    - `HALT_EXECUTION=0x1234,0x5678 ./scripts/macos/run_generated_tests.sh`
+- `run_microcode_tests.sh` and `run_generated_tests.sh` remain available for
+   isolating failures.
+ - Example custom ROM runs:
+   - `ROM_FILE=/absolute/path/to/APPLE2E.ROM ./scripts/macos/run_smoke.sh`
+   - `ROM_FILE=/absolute/path/to/APPLE2E.ROM ./scripts/macos/run_main_tests.sh`
+   - `ROM_GENERATED=loop ./scripts/macos/run_smoke.sh`
+   - `REQUIRE_HALT_PC=0xC000 STEPS=12 ./scripts/macos/run_smoke.sh`
 
 
 -------------------------------------------------------------------------------
