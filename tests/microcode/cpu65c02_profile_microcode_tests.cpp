@@ -77,6 +77,44 @@ void primeCpuAtOpcode(Cpu65c02& cpu, Uint16 pc, Uint16 opcodeIndex, Uint32 cycle
     E2TEST_ASSERT_EQ(0, cpu.restore(state));
 }
 
+void primeCpuState(
+        Cpu65c02& cpu,
+        Uint16 pc,
+        Uint16 opcodeIndex,
+        Uint32 cycleCount,
+        Uint8 a,
+        Uint8 y,
+        Uint8 x,
+        Uint8 p,
+        Uint8 s)
+{
+    SaveState state;
+    state.write8(a);
+    state.write8(y);
+    state.write8(x);
+    state.write16(pc);
+    state.write8(s);
+    state.write8(p);
+    state.write32(1);
+    state.write32(cycleCount);
+    state.write32(0);
+    state.write16(opcodeIndex);
+    state.write16((Uint16)Cpu65c02::_NOI);
+    state.write16((Uint16)Cpu65c02::NORMAL);
+    E2TEST_ASSERT_EQ(0, cpu.restore(state));
+}
+
+int runUntilProgramCounterChanges(Cpu65c02& cpu, Uint16 startPc)
+{
+    int cycles = 0;
+    while( cpu.getProgramCounter()==startPc && cycles<256 ) {
+        cpu.cycle();
+        cycles++;
+    }
+    E2TEST_ASSERT_TRUE(cpu.getProgramCounter()!=startPc);
+    return cycles;
+}
+
 void assertProfileOpcodeTableHasAllSlots(Profile p)
 {
     (void)p;
@@ -271,4 +309,107 @@ E2TEST_CASE(cmdProfileMeasuredCompatibilityNopWidthsMatchMameTable)
         E2TEST_ASSERT_EQ(static_cast<int>(Cpu65c02::_NOP), static_cast<int>(actual.mnemonic));
         E2TEST_ASSERT_EQ(expectedWidth, static_cast<int>(actual.instrSize));
     }
+}
+
+E2TEST_CASE(runtimeCmdProfileUsesHardwareValidatedNopTimingAndLength)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x0200;
+    memory->putMem(startPc + 0, 0x03);
+    memory->putMem(startPc + 1, 0x5C);
+    memory->putMem(startPc + 2, 0x00);
+    memory->putMem(startPc + 3, 0x00);
+    memory->putMem(startPc + 4, 0xEA);
+
+    const Cpu65c02::OpcodeDescriptor cmd03 =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0x03);
+    primeCpuAtOpcode(cpu, startPc, 0x03, cmd03.cycleTime);
+    const int cycles03 = runUntilProgramCounterChanges(cpu, startPc);
+    E2TEST_ASSERT_EQ(1, cycles03);
+    E2TEST_ASSERT_EQ(startPc + 1, cpu.getProgramCounter());
+
+    const Cpu65c02::OpcodeDescriptor cmd5c =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0x5C);
+    primeCpuAtOpcode(cpu, startPc + 1, 0x5C, cmd5c.cycleTime);
+    const int cycles5c = runUntilProgramCounterChanges(cpu, startPc + 1);
+    E2TEST_ASSERT_EQ(8, cycles5c);
+    E2TEST_ASSERT_EQ(startPc + 4, cpu.getProgramCounter());
+}
+
+E2TEST_CASE(runtimeCmdEightCycleUndocumentedNopRetiresAfterExactlyEightCycles)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x0200;
+    memory->putMem(startPc + 0, 0x5C);
+    memory->putMem(startPc + 1, 0x00);
+    memory->putMem(startPc + 2, 0x00);
+    memory->putMem(startPc + 3, 0xEA);
+
+    const Cpu65c02::OpcodeDescriptor cmd5c =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0x5C);
+    primeCpuAtOpcode(cpu, startPc, 0x5C, cmd5c.cycleTime);
+
+    for( int i = 0; i<7; ++i ) {
+        cpu.cycle();
+        E2TEST_ASSERT_EQ(startPc, cpu.getProgramCounter());
+    }
+    cpu.cycle();
+    E2TEST_ASSERT_EQ(startPc + 3, cpu.getProgramCounter());
+}
+
+E2TEST_CASE(runtimeJmpAbsIndXHasNoPageCrossPenalty)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x0200;
+    memory->putMem(startPc + 0, 0x7C);
+    memory->putMem(startPc + 1, 0xFF);
+    memory->putMem(startPc + 2, 0x20);
+    memory->putMem(0x2100, 0x34);
+    memory->putMem(0x2101, 0x12);
+
+    const Cpu65c02::OpcodeDescriptor jmpAbsIndX =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0x7C);
+    primeCpuState(cpu, startPc, 0x7C, jmpAbsIndX.cycleTime, 0x00, 0x00, 0x01, 0x24, 0xFF);
+    const int cycles = runUntilProgramCounterChanges(cpu, startPc);
+
+    E2TEST_ASSERT_EQ(6, cycles);
+    E2TEST_ASSERT_EQ(0x1234, cpu.getProgramCounter());
+}
+
+E2TEST_CASE(runtimeStaAbsXHasNoExtraPageCrossCycle)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x0200;
+    memory->putMem(startPc + 0, 0x9D);
+    memory->putMem(startPc + 1, 0xFF);
+    memory->putMem(startPc + 2, 0x20);
+
+    const Cpu65c02::OpcodeDescriptor staAbsX =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0x9D);
+    primeCpuState(cpu, startPc, 0x9D, staAbsX.cycleTime, 0xA5, 0x00, 0x01, 0x24, 0xFF);
+    const int cycles = runUntilProgramCounterChanges(cpu, startPc);
+
+    E2TEST_ASSERT_EQ(5, cycles);
+    E2TEST_ASSERT_EQ(startPc + 3, cpu.getProgramCounter());
+    E2TEST_ASSERT_EQ(0xA5, static_cast<int>(memory->getMem(0x2100)));
 }
