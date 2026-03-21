@@ -34,6 +34,10 @@ Platform presets:
 - Linux: `linux-release`
 - Windows: `windows-release`
 
+CI tiers (GitHub Actions):
+- Smoke: `./scripts/macos/run_smoke.sh`
+- Main tests: `./scripts/macos/run_main_tests.sh`
+
 `ever2e` requires a positional `.emu` path:
 
     ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
