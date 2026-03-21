@@ -215,5 +215,8 @@ streamsize SaveState::getPosition()
 
 void SaveState::clear()
 {
+	data.clear();
 	data.str("");
+	data.seekg(0, std::ios::beg);
+	data.seekp(0, std::ios::beg);
 }

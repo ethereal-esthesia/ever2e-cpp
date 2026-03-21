@@ -108,6 +108,7 @@ class EventLoop
 	bool pasteClearPending;
 	int pasteClearDelayCycles;
 	Uint32 pasteConsumeCounterSeen;
+	bool debugMenuToggle;
 		
 #ifdef _BENCHMARK_
 	double times;
@@ -150,6 +151,8 @@ public:
 	void dismissHostMenu();
 
 	void setUnthrottled( bool enable );
+
+	void setDebugMenuToggle( bool enable );
 
 	void queuePasteText( const Uint8* text, size_t size, bool fromClipboard = false );
 

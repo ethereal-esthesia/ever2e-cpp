@@ -26,6 +26,7 @@
 
 #include "eventloop.h"
 #include <cstring>
+#include <iomanip>
 
 
 using namespace std;
@@ -71,6 +72,17 @@ const string EventLoop::HOST_HELP[] =
 
 void EventLoop::_toggleHostInterface( HostMenuType type )
 {
+	const HostMenuType requestedType = type;
+	const char* requestedName = (requestedType==MENU_OFF) ? "MENU_OFF" : "MENU_HELP";
+	const char* currentName = (hostMenu==MENU_OFF) ? "MENU_OFF" : "MENU_HELP";
+	if( debugMenuToggle ) {
+		cerr << "[menu-debug] toggle request=" << requestedName
+			 << " current=" << currentName
+			 << " pc=0x" << hex << uppercase << setw(4) << setfill('0') << (int) cpu->getProgramCounter()
+			 << " text0400(main)=0x" << setw(2) << (int) memory->getMemPassive(0, 0x0400)
+			 << " text0400(aux)=0x" << setw(2) << (int) memory->getMemPassive(1, 0x0400)
+			 << dec << "\n";
+	}
 
 	if( type==hostMenu ) {
 		if( type==MENU_OFF )
@@ -94,6 +106,11 @@ void EventLoop::_toggleHostInterface( HostMenuType type )
 	}
 
 	hostMenu = type;
+	if( debugMenuToggle ) {
+		const char* activeName = (hostMenu==MENU_OFF) ? "MENU_OFF" : "MENU_HELP";
+		cerr << "[menu-debug] active menu=" << activeName
+			 << " (requested " << requestedName << ")\n";
+	}
 	
 	switch( type ) {
 
@@ -104,14 +121,36 @@ void EventLoop::_toggleHostInterface( HostMenuType type )
 			yOffset = 1;
 			xOffset = 1;
 			cpu->setModeText40();
+			if( debugMenuToggle ) {
+				cerr << "[menu-debug] entered MENU_HELP after setModeText40"
+					 << " text0400(main)=0x" << hex << uppercase << setw(2) << setfill('0') << (int) memory->getMemPassive(0, 0x0400)
+					 << " text0400(aux)=0x" << setw(2) << (int) memory->getMemPassive(1, 0x0400)
+					 << dec << "\n";
+			}
 			break;
 
 		///case SAVE_STATE: . . .
 			
-		case MENU_OFF:
-			restoreState(stateBuffer);
-			assert( keyboard->restore(keyboardStateBuffer)==0 );
-			keyboardStateBuffer.clear();
+			case MENU_OFF:
+			if( debugMenuToggle ) {
+				cerr << "[menu-debug] restoring MENU_OFF pre-restore"
+					 << " text0400(main)=0x" << hex << uppercase << setw(2) << setfill('0') << (int) memory->getMemPassive(0, 0x0400)
+					 << " text0400(aux)=0x" << setw(2) << (int) memory->getMemPassive(1, 0x0400)
+					 << dec << "\n";
+			}
+				restoreState(stateBuffer);
+				const int keyboardRestoreStatus = keyboard->restore(keyboardStateBuffer);
+				if( keyboardRestoreStatus!=0 ) {
+					std::cerr << "Keyboard restore failed with status " << keyboardRestoreStatus << std::endl;
+					assert(false);
+				}
+				keyboardStateBuffer.clear();
+			if( debugMenuToggle ) {
+				cerr << "[menu-debug] restored MENU_OFF post-restore"
+					 << " text0400(main)=0x" << hex << uppercase << setw(2) << setfill('0') << (int) memory->getMemPassive(0, 0x0400)
+					 << " text0400(aux)=0x" << setw(2) << (int) memory->getMemPassive(1, 0x0400)
+					 << dec << "\n";
+			}
 			// Restore pause status
 			if( idleState ) {
 				monitor->setIdleState(true);
@@ -246,6 +285,8 @@ EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPat
 	pasteClearPending = false;
 	pasteClearDelayCycles = 0;
 	pasteConsumeCounterSeen = 0;
+	const char* debugEnv = getenv("EVER2E_DEBUG");
+	debugMenuToggle = (debugEnv!=NULL && debugEnv[0]!='\0' && debugEnv[0]!='0');
 	stepPhaseListener = NULL;
 	stepPhaseCount = 0;
 	stepPhaseLimit = -1;
@@ -359,8 +400,14 @@ void EventLoop::cycle()
 			switch( event->type ) {
 
 				case SDL_KEYDOWN:
-					if( suppressHostKeys )
+					if( suppressHostKeys ) {
+						if( debugMenuToggle && event->key.key==SDLK_F1 ) {
+							cerr << "[menu-debug] F1 keydown suppressed while paste queue active"
+								 << " hostMenu=" << ((hostMenu==MENU_OFF) ? "MENU_OFF" : "MENU_HELP")
+								 << "\n";
+						}
 						break;
+					}
 
 /***
 					// Ignore key if it is not being pressed at this moment to avoid key glitches in malfunctioning keyboards
@@ -373,6 +420,12 @@ void EventLoop::cycle()
 						case SDLK_F1:
 							if( doubleDown )
 								break;
+							if( debugMenuToggle ) {
+								cerr << "[menu-debug] F1 keydown accepted"
+									 << " hostMenu=" << ((hostMenu==MENU_OFF) ? "MENU_OFF" : "MENU_HELP")
+									 << " suppressHostKeys=" << (suppressHostKeys ? 1 : 0)
+									 << "\n";
+							}
 							// Help menu
 							_toggleHostInterface(MENU_HELP);
 							break;
@@ -799,6 +852,11 @@ void EventLoop::setUnthrottled( bool enable )
 	unthrottled = enable;
 }
 
+void EventLoop::setDebugMenuToggle( bool enable )
+{
+	debugMenuToggle = enable;
+}
+
 void EventLoop::queuePasteText( const Uint8* text, size_t size, bool fromClipboard )
 {
 	if( text==NULL || size==0 )
@@ -933,8 +991,20 @@ void EventLoop::storeState( SaveState& state )
 
 void EventLoop::restoreState( SaveState& state )
 {	
-	assert( cpu->restore(state)==0 );
-	assert( memory->restore(state)==0 );
-	assert( monitor->restore(state)==0 );
+	const int cpuRestoreStatus = cpu->restore(state);
+	if( cpuRestoreStatus!=0 ) {
+		std::cerr << "CPU restore failed with status " << cpuRestoreStatus << std::endl;
+		assert(false);
+	}
+	const int memoryRestoreStatus = memory->restore(state);
+	if( memoryRestoreStatus!=0 ) {
+		std::cerr << "Memory restore failed with status " << memoryRestoreStatus << std::endl;
+		assert(false);
+	}
+	const int monitorRestoreStatus = monitor->restore(state);
+	if( monitorRestoreStatus!=0 ) {
+		std::cerr << "Monitor restore failed with status " << monitorRestoreStatus << std::endl;
+		assert(false);
+	}
 	state.clear();
 }

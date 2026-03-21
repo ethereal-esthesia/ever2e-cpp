@@ -32,6 +32,24 @@
 
 using namespace std;
 
+const char Memory128k::TRACE_WRITE_PREFIX[] = "[tracewrite]";
+
+void Memory128k::_traceWriteIfNeeded( const char* source, Uint16 address, Uint8 writeByte, Uint8 mainBefore, Uint8 auxBefore, Uint8 mainAfter, Uint8 auxAfter )
+{
+	if( traceWriteAddresses.empty() || traceWriteAddresses.find(address)==traceWriteAddresses.end() )
+		return;
+	std::cerr << TRACE_WRITE_PREFIX
+			<< " source=" << (source ? source : "unknown")
+			<< " addr=0x" << std::hex
+			<< (int) address
+			<< " pc=0x"
+			<< (cpu ? cpu->getProgramCounter() : 0)
+			<< " write=0x" << (int) writeByte
+			<< " main:0x" << (int) mainBefore << "->0x" << (int) mainAfter
+			<< " aux:0x" << (int) auxBefore << "->0x" << (int) auxAfter
+			<< std::dec << std::endl;
+}
+
 void Memory128k::setSwitch( Uint32 state )
 {
 	switchState = Uint32 (switchState | state);
@@ -1151,6 +1169,7 @@ Memory128k::Memory128k( const std::string& initialRomFilePath )
 	this->monitor = NULL;
 	romFilePath = initialRomFilePath.empty() ? string("apple2e.rom") : initialRomFilePath;
 	deterministicOpenBusHigh = false;
+	traceWriteAddresses.clear();
 	const MemoryBlock MEMORY_LAYOUT[] = 
 	{
 		{ 0x00,   &Memory128k::_readZpSt,    &Memory128k::_writeZpSt   },  // Zero-page and stack
@@ -1196,7 +1215,39 @@ void Memory128k::putSlot( int slot, PeripheralCard16bit* card )
 
 void Memory128k::putMem( Uint16 address, Uint8 byte )
 {
+	Uint8 mainBefore = 0;
+	Uint8 auxBefore = 0;
+	if( !traceWriteAddresses.empty() && traceWriteAddresses.find(address)!=traceWriteAddresses.end() ) {
+		mainBefore = ramPage64k[address];
+		auxBefore = ramPage64k[0x10000|address];
+	}
 	(this->*putMemBlockFunc[address>>8])(address, byte);
+	if( !traceWriteAddresses.empty() && traceWriteAddresses.find(address)!=traceWriteAddresses.end() ) {
+		Uint8 mainAfter = ramPage64k[address];
+		Uint8 auxAfter = ramPage64k[0x10000|address];
+		_traceWriteIfNeeded("putMem", address, byte, mainBefore, auxBefore, mainAfter, auxAfter);
+	}
+}
+
+void Memory128k::putMemRange( int page, Uint16 startAddress, const Uint8* bytes, Uint32 size )
+{
+	if( bytes==NULL || size==0 )
+		return;
+	assert(page>=0 && page<TOTAL_RAM_PAGES);
+
+	Uint32 addr = startAddress;
+	for( Uint32 i = 0; i<size; i++, addr++ ) {
+		if( addr>0xffff )
+			break;
+		Uint16 a16 = (Uint16) addr;
+		Uint8 writeByte = bytes[i];
+		Uint8 mainBefore = ramPage64k[a16];
+		Uint8 auxBefore = ramPage64k[0x10000|a16];
+		ramPage64k[(page<<16)|a16] = writeByte;
+		Uint8 mainAfter = ramPage64k[a16];
+		Uint8 auxAfter = ramPage64k[0x10000|a16];
+		_traceWriteIfNeeded("putMemRange", a16, writeByte, mainBefore, auxBefore, mainAfter, auxAfter);
+	}
 }
 
 Uint8 Memory128k::getMem( Uint16 address )
@@ -1242,7 +1293,12 @@ int Memory128k::restore( SaveState &state )
 {
 	
 	state.startChecksum();
-	state.readCString((char*) ramPage64k, TOTAL_RAM_PAGES<<16);
+	const Uint32 totalRamBytes = (Uint32)(TOTAL_RAM_PAGES<<16);
+	Uint8* ramImage = new Uint8[totalRamBytes];
+	state.readCString((char*) ramImage, totalRamBytes);
+	putMemRange(0, 0x0000, ramImage, 0x10000);
+	putMemRange(1, 0x0000, ramImage+0x10000, 0x10000);
+	delete[] ramImage;
 	state.readCString((char*) rom16k, sizeof(rom16k));
 	toggleMod = state.read16();
 	accessCount = state.read16();
@@ -1277,6 +1333,16 @@ void Memory128k::setDeterministicOpenBusHigh( bool enabled )
 bool Memory128k::getDeterministicOpenBusHigh() const
 {
 	return deterministicOpenBusHigh;
+}
+
+void Memory128k::addTraceWriteAddress( Uint16 address )
+{
+	traceWriteAddresses.insert(address);
+}
+
+void Memory128k::clearTraceWriteAddresses()
+{
+	traceWriteAddresses.clear();
 }
 
 void Memory128k::setRomFilePath( const std::string& path )
