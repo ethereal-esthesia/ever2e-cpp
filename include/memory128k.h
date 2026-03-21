@@ -188,6 +188,10 @@ public:
 		// "peek" memory
 		// "noCount" should be used by CPU or diagnostic routines only to combine multiple accesses and save on design complexity
 
+	Uint8 peekMemNoSideEffects( Uint16 address );
+		// Side-effect-free memory snapshot read for debug/dump/trace paths.
+		// Does not toggle soft-switches, strobe keyboard, or speaker.
+
 	void memAccess();
 		// Should be used by CPU and hardware routines to simulate a RAM access request once per emulated access
 		// This will cause an error if more than one access is made per cycle allowing proper hardware integration to be verified
