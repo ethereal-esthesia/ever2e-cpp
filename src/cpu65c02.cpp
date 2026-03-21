@@ -125,7 +125,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _NOP,       _IMP,       1,          1 },  // 0x1b
 	{ _TRB,       _ABS,       3,          6 },  // 0x1c
 	{ _ORA,       _ABS_X,     3,          4 },  // 0x1d
-	{ _ASL,       _ABS_X,     3,          6 },  // 0x1e
+	{ _ASL,       _ABS_X,     3,          7 },  // 0x1e
 	{ _NOP,       _IMP,       1,          1 },  // 0x1f
 	{ _JSR,       _ABS,       3,          6 },  // 0x20
 	{ _AND,       _IND_X,     2,          6 },  // 0x21
@@ -157,7 +157,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _NOP,       _IMP,       1,          1 },  // 0x3b
 	{ _BIT,       _ABS_X,     3,          4 },  // 0x3c
 	{ _AND,       _ABS_X,     3,          4 },  // 0x3d
-	{ _ROL,       _ABS_X,     3,          6 },  // 0x3e
+	{ _ROL,       _ABS_X,     3,          7 },  // 0x3e
 	{ _NOP,       _IMP,       1,          1 },  // 0x3f
 	{ _RTI,       _IMP,       1,          6 },  // 0x40
 	{ _EOR,       _IND_X,     2,          6 },  // 0x41
@@ -189,7 +189,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _NOP,       _IMP,       1,          1 },  // 0x5b
 	{ _NOP,       _IMP,       3,          8 },  // 0x5c
 	{ _EOR,       _ABS_X,     3,          4 },  // 0x5d
-	{ _LSR,       _ABS_X,     3,          6 },  // 0x5e
+	{ _LSR,       _ABS_X,     3,          7 },  // 0x5e
 	{ _NOP,       _IMP,       1,          1 },  // 0x5f
 	{ _RTS,       _IMP,       1,          6 },  // 0x60
 	{ _ADC,       _IND_X,     2,          6 },  // 0x61
@@ -221,7 +221,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _NOP,       _IMP,       1,          1 },  // 0x7b
 	{ _JMP,       _ABS_IND_X, 3,          6 },  // 0x7c
 	{ _ADC,       _ABS_X,     3,          4 },  // 0x7d
-	{ _ROR,       _ABS_X,     3,          6 },  // 0x7e
+	{ _ROR,       _ABS_X,     3,          7 },  // 0x7e
 	{ _NOP,       _IMP,       1,          1 },  // 0x7f
 	{ _BRA,       _REL,       2,          2 },  // 0x80
 	{ _STA,       _IND_X,     2,          6 },  // 0x81
@@ -317,7 +317,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _NOP,       _IMP,       1,          1 },  // 0xdb
 	{ _NOP,       _IMP,       3,          4 },  // 0xdc
 	{ _CMP,       _ABS_X,     3,          4 },  // 0xdd
-	{ _DEC,       _ABS_X,     3,          6 },  // 0xde
+	{ _DEC,       _ABS_X,     3,          7 },  // 0xde
 	{ _NOP,       _IMP,       1,          1 },  // 0xdf
 	{ _CPX,       _IMM,       2,          2 },  // 0xe0
 	{ _SBC,       _IND_X,     2,          6 },  // 0xe1
@@ -349,7 +349,7 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _NOP,       _IMP,       1,          1 },  // 0xfb
 	{ _NOP,       _IMP,       3,          4 },  // 0xfc
 	{ _SBC,       _ABS_X,     3,          4 },  // 0xfd
-	{ _INC,       _ABS_X,     3,          6 },  // 0xfe
+	{ _INC,       _ABS_X,     3,          7 },  // 0xfe
 	{ _NOP,       _IMP,       1,          1 },  // 0xff
 	
 	{ _IRQ,       _IMP,       0,          6 },  /// TODO: Verify cycle time
@@ -1512,6 +1512,20 @@ void Cpu65c02::setMultiplier( int multiplier )
 int Cpu65c02::getMultiplier()
 {
 	return multiplier;
+}
+
+Cpu65c02::OpcodeDescriptor Cpu65c02::getOpcodeDescriptor( uint16_t machineCode )
+{
+	OpcodeDescriptor out = { 0, _NOP, _IMP, 1, 1 };
+	if( machineCode>=0x100 )
+		return out;
+	const OpcodeTable& entry = OPCODE_65C02[machineCode];
+	out.machineCode = (uint8_t) machineCode;
+	out.mnemonic = (uint8_t) entry.mnemonic;
+	out.addressMode = (uint8_t) entry.addressMode;
+	out.instrSize = (uint8_t) entry.instrSize;
+	out.cycleTime = (uint8_t) entry.cycleTime;
+	return out;
 }
 
 void Cpu65c02::store( SaveState& state )
