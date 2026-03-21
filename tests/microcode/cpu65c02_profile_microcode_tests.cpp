@@ -49,6 +49,11 @@ public:
             chdir(oldCwd_.c_str());
     }
 
+    bool active() const
+    {
+        return active_;
+    }
+
 private:
     bool active_;
     std::string oldCwd_;
@@ -182,7 +187,8 @@ E2TEST_CASE(cpuDescriptorProfilesExposeCmdOverrides)
 
 E2TEST_CASE(runtimeCmdProfileNopWidthDiffersFromWdc)
 {
-    ScopedCwd cwd("/Users/shane/Project/ever2e-cpp/release");
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memoryWdc(new Memory128k());
     std::unique_ptr<Memory128k> memoryCmd(new Memory128k());
