@@ -104,6 +104,7 @@ void Memory128k::coldReset()
 	accessCount = 0;
 	toggleMod = 0;
 	dumpOnDestroy = false;
+	expansionRomSlot = 0;
 	
 }
 
@@ -931,7 +932,7 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 
 		// Sather 5-28
 		// INTC8ROM - Set by access to $C3XX with SLOTC3ROM reset
-		//            Reset by access to $CFFF or 'RESET
+		//            Also forced by $CFFF to route C800-CFFF back to internal ROM
 		if( !getSwitch(_SLOTC3ROM) )
 			setSwitch(_INTC8ROM);
 		
@@ -944,6 +945,8 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 		else {
 		
 			// Peripheral card ROM at $C3XX
+			resetSwitch(_INTC8ROM);
+			expansionRomSlot = 3;
 			if( slotCard[3] != NULL )
 				return slotCard[slot]->getMem256b(address&0x00ff);
 			else
@@ -962,6 +965,8 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 			return rom16k[address-0xc000];
 		else {
 			// Peripheral card ROM at $CNXX
+			resetSwitch(_INTC8ROM);
+			expansionRomSlot = (Uint8)slot;
 			if( slotCard[slot] != NULL )
 				return slotCard[slot]->getMem256b(address&0x00ff);
 			else
@@ -983,43 +988,24 @@ Uint8 Memory128k::_readExpMem( Uint16 address )
 	// Read from expansion memory 0xc800-0xcffe / soft-switch 0xcfff
 	
 	// Sather 5-28
-	// INTC8ROM - Set by access to $C3XX with SLOTC3ROM reset
-	//            Reset by access to $CFFF or 'RESET	
-	//            Grants access to internal ROM at $C800-$CFFF
+	// INTC8ROM - Grants access to internal ROM at $C800-$CFFF.
+	//            Slot Cnxx accesses clear it (peripheral C800 window),
+	//            while C3xx internal path and CFFF set it (internal C800 window).
 
 	if( address==0xcfff ) {
-		resetSwitch(_INTC8ROM);
+		expansionRomSlot = 0;
+		setSwitch(_INTC8ROM);
 		return _readFloatingBus();
 	}
 		
 	if( getSwitch(_INTC8ROM) || getSwitch(_INTCXROM) )
 		return rom16k[address-0xc000];
 
-	/// STUB ///
-	
-#ifdef _MEMORY_TEST_OUTPUT	
-	cerr << "Warning: read from expansion memory at " << hex << setw(4) << (int) address << endl;
-#endif
+	// Slot-selected expansion ROM window (C800-CFFE), latched by prior Cnxx access.
+	if( expansionRomSlot>=1 && expansionRomSlot<=7 && slotCard[expansionRomSlot]!=NULL )
+		return slotCard[expansionRomSlot]->getMem2k(address&0x07ff);
 
 	return _readFloatingBus();
-	
-/*
-		
-	/// Reading locations 0xcN00-0xcNff will enable the block designated to slot N for reading
-	/// Reading 0xcfff disables reading 0xc800-0xcfff for all cards and instead directs reads to the system ROM
-
-	else {
-		if( false )//// STUB - LC ROM switch on
-			return rom16k[address-0xc000];
-		else {
-			if( false )//// internal slot 3 test logic
-				return expRom2k[0][address&0x7ff];  // Internal slot 3 ROM
-			else
-				/// STUB - N should be current slot pointer or ??? for no slot selected
-				return expRom2k[N][address&0x07ff];
-		}
-	}
-*/
 }
 
 void Memory128k::_writeExpMem( Uint16 address, Uint8 byte )
@@ -1350,6 +1336,8 @@ Uint8 Memory128k::peekMemNoSideEffects( Uint16 address )
 			return 0x00;
 		if( getSwitch(_INTC8ROM) || getSwitch(_INTCXROM) )
 			return rom16k[address-0xc000];
+		if( expansionRomSlot>=1 && expansionRomSlot<=7 && slotCard[expansionRomSlot]!=NULL )
+			return slotCard[expansionRomSlot]->getMem2k(address&0x07ff);
 		return 0x00;
 	}
 
@@ -1391,6 +1379,7 @@ void Memory128k::store( SaveState &state )
 	state.writeCString((char*) rom16k, sizeof(rom16k));
 	state.write16(toggleMod);
 	state.write16(accessCount);
+	state.write8(expansionRomSlot);
 	state.write32(captureSoftSwitchState().switchState);
 
 ///	Uint8 *slotRom256b[8];	// Pointer to 256 byte rom for slots 1-7
@@ -1413,6 +1402,7 @@ int Memory128k::restore( SaveState &state )
 	state.readCString((char*) rom16k, sizeof(rom16k));
 	toggleMod = state.read16();
 	accessCount = state.read16();
+	expansionRomSlot = state.read8();
 	SoftSwitchSnapshot snapshot;
 	snapshot.switchState = state.read32();
 	restoreSoftSwitchState(snapshot);
