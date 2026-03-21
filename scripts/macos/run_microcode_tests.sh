@@ -30,10 +30,10 @@ CORE_SOURCES=()
 while IFS= read -r file; do
   CORE_SOURCES+=("$file")
 done < <(find "$ROOT_DIR/src" -name '*.cpp' -type f ! -name 'ever2e.cpp' | sort)
-TEST_SOURCES=(
-  "$ROOT_DIR/tests/microcode/main.cpp"
-  "$ROOT_DIR/tests/microcode/cpu65c02_microcode_tests.cpp"
-)
+TEST_SOURCES=()
+while IFS= read -r file; do
+  TEST_SOURCES+=("$file")
+done < <(find "$ROOT_DIR/tests/microcode" -name '*.cpp' -type f | sort)
 
 "$CXX_BIN" "${CXXFLAGS[@]}" "${CORE_SOURCES[@]}" "${TEST_SOURCES[@]}" -o "$OUTPUT_BIN" "${LDFLAGS[@]}"
 "$OUTPUT_BIN"
