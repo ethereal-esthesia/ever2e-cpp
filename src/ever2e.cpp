@@ -33,6 +33,7 @@
 #include <cctype>
 #include <map>
 #include <algorithm>
+#include <filesystem>
 #include "eventloop.h"
 
 
@@ -135,6 +136,37 @@ bool tryParseSlotPattern( const string& raw, Uint8& out )
 		return false;
 	out = (Uint8) v;
 	return true;
+}
+
+string dirnameOfPath( const string& path )
+{
+	size_t slash = path.find_last_of("/\\");
+	if( slash==string::npos )
+		return string(".");
+	return path.substr(0, slash);
+}
+
+bool isAbsolutePath( const string& path )
+{
+	if( path.empty() )
+		return false;
+	if( path[0]=='/' || path[0]=='\\' )
+		return true;
+	if( path.size()>2 && ((path[0]>='A' && path[0]<='Z') || (path[0]>='a' && path[0]<='z')) && path[1]==':' )
+		return true;
+	return false;
+}
+
+string resolveEmuRelativePath( const EmuConfig& cfg, const string& fileName )
+{
+	if( fileName.empty() )
+		return fileName;
+	if( isAbsolutePath(fileName) )
+		return fileName;
+	std::filesystem::path base = dirnameOfPath(cfg.sourcePath);
+	if( !base.is_absolute() )
+		base = std::filesystem::absolute(base);
+	return (base / fileName).lexically_normal().string();
 }
 
 void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<PeripheralCard16bit*>& ownedCards )
@@ -382,21 +414,17 @@ int main( int args, char** argv )
 
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
-		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--emu <path>] [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-verbose] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
-			return 0;
-		}
-		if( arg == "--emu" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --emu\n";
-				return 1;
+		if( !arg.empty() && arg[0]!='-' ) {
+			if( EmuConfigPath.empty() ) {
+				EmuConfigPath = arg;
+				continue;
 			}
-			EmuConfigPath = argv[++i];
-			continue;
+			cerr << "Unexpected positional argument: " << arg << "\n";
+			return 1;
 		}
-		if( arg.find("--emu=")==0 ) {
-			EmuConfigPath = arg.substr(sizeof("--emu=")-1);
-			continue;
+		if( arg == "--help" ) {
+			cout << "Usage: ever2e <emu-path> [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-verbose] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
+			return 0;
 		}
 		if( arg == "--paste-file" ) {
 			if( i+1>=args ) {
@@ -593,6 +621,11 @@ int main( int args, char** argv )
 		cerr << "Unrecognized argument: " << arg << "\n";
 		return 1;
 	}
+	if( EmuConfigPath.empty() ) {
+		cerr << "Missing required <emu-path> positional argument.\n";
+		cerr << "Run with --help for usage.\n";
+		return 1;
+	}
 
 	if( HeadlessMode ) {
 		setenv("SDL_VIDEODRIVER", "dummy", 1);
@@ -609,16 +642,18 @@ int main( int args, char** argv )
 		SelectedCpuProfile = envProfile;
 	}
 
-	EventLoop emulator(SelectedCpuProfile);
 	vector<PeripheralCard16bit*> ownedSlotCards;
 	EmuConfig emuConfig;
-	if( !EmuConfigPath.empty() ) {
-		if( !loadEmuConfig(EmuConfigPath, emuConfig) ) {
-			cerr << "Unable to load .emu config: \"" << EmuConfigPath << "\"\n";
-			return 1;
-		}
-		installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
+	if( !loadEmuConfig(EmuConfigPath, emuConfig) ) {
+		cerr << "Unable to load .emu config: \"" << EmuConfigPath << "\"\n";
+		return 1;
 	}
+	string romPath;
+	map<string, string>::const_iterator binIt = emuConfig.properties.find("binary.file");
+	if( binIt!=emuConfig.properties.end() && !trimString(binIt->second).empty() )
+		romPath = resolveEmuRelativePath(emuConfig, trimString(binIt->second));
+	EventLoop emulator(SelectedCpuProfile, romPath);
+	installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
 	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);
 	if( !TraceFilePath.empty() ) {
 		TraceFileOut.open(TraceFilePath.c_str(), ios::out | ios::trunc);

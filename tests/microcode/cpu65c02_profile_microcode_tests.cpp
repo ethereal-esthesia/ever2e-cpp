@@ -2,10 +2,9 @@
 
 #include <array>
 #include <cstdint>
-#include <limits.h>
+#include <filesystem>
 #include <memory>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include "cpu/cpu65c02_cmd_profile.h"
@@ -35,18 +34,19 @@ public:
     explicit ScopedCwd(const std::string& path)
         : active_(false)
     {
-        char buf[PATH_MAX];
-        if( getcwd(buf, sizeof(buf))!=NULL ) {
-            oldCwd_ = buf;
-            if( chdir(path.c_str())==0 )
-                active_ = true;
-        }
+        std::error_code ec;
+        oldCwd_ = std::filesystem::current_path(ec);
+        if( ec )
+            return;
+        std::filesystem::current_path(path, ec);
+        if( !ec )
+            active_ = true;
     }
 
     ~ScopedCwd()
     {
         if( active_ )
-            chdir(oldCwd_.c_str());
+            std::filesystem::current_path(oldCwd_);
     }
 
     bool active() const
@@ -56,7 +56,7 @@ public:
 
 private:
     bool active_;
-    std::string oldCwd_;
+    std::filesystem::path oldCwd_;
 };
 
 void primeCpuAtOpcode(Cpu65c02& cpu, Uint16 pc, Uint16 opcodeIndex, Uint32 cycleCount)

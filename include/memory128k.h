@@ -30,6 +30,7 @@
 #include <iostream>
 #include <fstream>
 #include <cassert>
+#include <string>
 #include "cpu65c02.h"
 #include "mon560x192.h"
 #include "speaker1bit.h"
@@ -58,6 +59,7 @@ class Memory128k
 	Uint8 ramPage64k[TOTAL_RAM_PAGES<<16];
 	PeripheralCard16bit* slotCard[8];   // Pointers to cards in slots 1-7
 	Uint8 rom16k[0x4000];  // 16k language card (LC) ROM 
+	std::string romFilePath;
 
 	Uint8 (Memory128k::*getMemBlockFunc[0x100])( Uint16 address );
 	void (Memory128k::*putMemBlockFunc[0x100])( Uint16 address, Uint8 byte );
@@ -117,7 +119,7 @@ public:
 		Uint32 switchState;
 	};
 
-	Memory128k();
+	Memory128k( const std::string& initialRomFilePath = "apple2e.rom" );
 
 	~Memory128k();
 
@@ -211,6 +213,8 @@ public:
 	void setDeterministicOpenBusHigh( bool enabled );
 
 	bool getDeterministicOpenBusHigh() const;
+
+	void setRomFilePath( const std::string& path );
 	
 };
 	

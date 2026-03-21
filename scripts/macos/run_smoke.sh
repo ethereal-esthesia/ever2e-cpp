@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_SH="$ROOT_DIR/scripts/macos/run.sh"
+EMU_FILE="${EMU_FILE:-$ROOT_DIR/release/Apple2eNoSlots.emu}"
 
 PASTE_FILE="${PASTE_FILE:-$ROOT_DIR/release/opcode_smoke_loader_hgr_mem_32k.mon}"
 STEPS="${STEPS:-200000000}"
@@ -13,6 +14,10 @@ TRACE_STEPS_COUNT="${TRACE_STEPS_COUNT:-}"
 
 if [[ ! -f "$PASTE_FILE" ]]; then
   echo "Error: smoke paste file not found: $PASTE_FILE" >&2
+  exit 1
+fi
+if [[ ! -f "$EMU_FILE" ]]; then
+  echo "Error: .emu config not found: $EMU_FILE" >&2
   exit 1
 fi
 
@@ -34,5 +39,6 @@ if [[ -n "$TRACE_STEPS_COUNT" ]]; then
 fi
 
 exec "$RUN_SH" \
+  "$EMU_FILE" \
   "${ARGS[@]}" \
   "$@"

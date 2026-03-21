@@ -18,6 +18,28 @@ http://www.cursorcorner.net/contact.php
 
 
 -------------------------------------------------------------------------------
+                          CROSS-PLATFORM BUILD (CMAKE)
+-------------------------------------------------------------------------------
+
+This repo now uses CMake/CTest as the source of truth for all platforms.
+
+From the repository root:
+
+    cmake --preset macos-release
+    cmake --build --preset macos-release
+    ctest --preset macos-release
+
+Platform presets:
+- macOS: `macos-release`
+- Linux: `linux-release`
+- Windows: `windows-release`
+
+`ever2e` requires a positional `.emu` path:
+
+    ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
+
+
+-------------------------------------------------------------------------------
                                MACOS QUICK START
 -------------------------------------------------------------------------------
 
@@ -25,22 +47,37 @@ From the repository root:
 
     ./scripts/macos/build.sh
     ./scripts/macos/run.sh
+    ./scripts/macos/run_microcode_tests.sh
     ./scripts/macos/run_smoke.sh
+
+Direct binary usage (required positional `.emu` config):
+
+    ./build/macos/ever2e release/Apple2eNoSlots.emu
+    ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
 
 Optional cleanup:
 
     ./scripts/macos/clean.sh
 
 Notes:
+- `build.sh` now builds both `ever2e` and `microcode_tests`.
+- `run.sh` and `run_microcode_tests.sh` rebuild by default to avoid stale binaries.
+  Set `REBUILD_ON_RUN=0` to skip rebuild.
 - The run script starts from "release/" so ROM/assets resolve correctly.
+- The emulator now requires a positional `.emu` config path (no `--emu` flag).
+- A default config is provided at `release/Apple2eNoSlots.emu`.
+- ROM loading follows `binary.file` from the `.emu` config (relative paths are
+  resolved from the `.emu` file directory).
 - If SDL is installed in a non-standard location, set PKG_CONFIG_PATH before
   running build.sh.
 - `run_smoke.sh` runs the opcode smoke paste-loader with default halt addresses:
   - PASS loop: `0x33D2`
   - FAIL loop: `0x33C0`
   - Runs in unthrottled headless mode for faster bounded runs
+  - Uses `release/Apple2eNoSlots.emu` by default (override with `EMU_FILE=...`)
   - Override with env vars if needed:
     - `STEPS=120000000 ./scripts/macos/run_smoke.sh`
+    - `EMU_FILE=/path/to/config.emu ./scripts/macos/run_smoke.sh`
     - `HALT_EXECUTION=0x1234,0x5678 ./scripts/macos/run_smoke.sh`
 
 
