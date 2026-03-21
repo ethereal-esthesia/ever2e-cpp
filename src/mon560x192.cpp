@@ -1049,7 +1049,6 @@ Uint16 Monitor560x192::_getFloatingBusAddress() const
 	static const int kVCounterSeed = 0x100;
 	static const int kHCounterPreset = 41;
 	static const int kVCounterPreset = 256;
-	static const int kTextPrefetchStart = 40;
 
 	const int hScan = (int) hRefreshCount;
 	const int vScan = (int) vRefreshCount;
@@ -1116,8 +1115,6 @@ Uint16 Monitor560x192::_getFloatingBusAddress() const
 	else {
 		address |= (Uint16) ((1 ^ pageBit) << 10);
 		address |= (Uint16) (pageBit << 11);
-		if( hClock>=kTextPrefetchStart )
-			address |= (Uint16) (1 << 12);
 	}
 
 	return address & 0xffff;
