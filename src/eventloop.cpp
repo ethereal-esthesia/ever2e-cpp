@@ -246,6 +246,11 @@ EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile )
 	pasteClearPending = false;
 	pasteClearDelayCycles = 0;
 	pasteConsumeCounterSeen = 0;
+	stepPhaseListener = NULL;
+	stepPhaseCount = 0;
+	stepPhaseLimit = -1;
+	stepPhaseActive = false;
+	stepPhaseStopRequested = false;
 
 #ifdef _BENCHMARK_
 	// Time CPU
@@ -691,6 +696,16 @@ void EventLoop::cycle()
 
 	// Continue emulation sequence on the microsecond timescale
 	while( elapsedTimeNanoseconds > 0 ) {
+		if( stepPhaseActive && stepPhaseStopRequested )
+			break;
+
+		long long stepNumber = stepPhaseCount + 1;
+		if( stepPhaseActive && stepPhaseListener!=NULL ) {
+			if( !stepPhaseListener(this, stepNumber, true) ) {
+				stepPhaseStopRequested = true;
+				break;
+			}
+		}
 
 		// Time lapse
 
@@ -736,6 +751,18 @@ void EventLoop::cycle()
 		Uint16 soundWord;
 		if( speaker->pollSound(soundWord) )
 			sound->playSample(soundWord);
+
+		if( stepPhaseActive ) {
+			stepPhaseCount = stepNumber;
+			if( stepPhaseListener!=NULL && !stepPhaseListener(this, stepPhaseCount, false) ) {
+				stepPhaseStopRequested = true;
+				break;
+			}
+			if( stepPhaseLimit>=0 && stepPhaseCount>=stepPhaseLimit ) {
+				stepPhaseStopRequested = true;
+				break;
+			}
+		}
 
 		elapsedTimeNanoseconds -= cycleTimeNanoseconds;
 
@@ -863,6 +890,36 @@ void EventLoop::queuePasteKey( Uint8 key )
 bool EventLoop::hasPendingPaste() const
 {
 	return !pasteQueue.empty();
+}
+
+long long EventLoop::startWithStepPhases( long long maxSteps, StepPhaseListener listener )
+{
+	StepPhaseListener oldListener = stepPhaseListener;
+	long long oldLimit = stepPhaseLimit;
+	bool oldActive = stepPhaseActive;
+	bool oldStopRequested = stepPhaseStopRequested;
+	long long oldCount = stepPhaseCount;
+	bool oldUnthrottled = unthrottled;
+
+	stepPhaseListener = listener;
+	stepPhaseCount = 0;
+	stepPhaseLimit = maxSteps;
+	stepPhaseActive = true;
+	stepPhaseStopRequested = false;
+	unthrottled = true;
+
+	while( !exitStatus && !stepPhaseStopRequested )
+		cycle();
+
+	long long completedSteps = stepPhaseCount;
+
+	stepPhaseListener = oldListener;
+	stepPhaseLimit = oldLimit;
+	stepPhaseActive = oldActive;
+	stepPhaseStopRequested = oldStopRequested;
+	stepPhaseCount = oldCount;
+	unthrottled = oldUnthrottled;
+	return completedSteps;
 }
 
 void EventLoop::storeState( SaveState& state )

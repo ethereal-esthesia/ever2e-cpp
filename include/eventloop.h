@@ -125,6 +125,7 @@ class EventLoop
 	void _helpMenuCycle();
 
 public:
+	typedef bool (*StepPhaseListener)( EventLoop* loop, long long step, bool preCycle );
 
 	class Memory128k* memory;       // Includes memory bus functions, RAM and ROM storage
 	class Monitor560x192* monitor;  // The surface passed to the monitor points directly to the video display
@@ -137,6 +138,8 @@ public:
 	~EventLoop();
 	
 	void cycle();
+
+	long long startWithStepPhases( long long maxSteps, StepPhaseListener stepPhaseListener );
 
 	void incorporate( bool (*func)( EventLoop* ), bool perCycle = false );
 	
@@ -157,6 +160,13 @@ public:
 	void storeState( SaveState& state );
 	
 	void restoreState( SaveState& state );
+
+private:
+	StepPhaseListener stepPhaseListener;
+	long long stepPhaseCount;
+	long long stepPhaseLimit;
+	bool stepPhaseActive;
+	bool stepPhaseStopRequested;
 		
 };
 
