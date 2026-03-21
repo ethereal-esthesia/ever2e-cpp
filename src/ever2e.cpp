@@ -34,6 +34,7 @@
 #include <map>
 #include <algorithm>
 #include <filesystem>
+#include "CLI.hpp"
 #include "eventloop.h"
 
 
@@ -55,6 +56,8 @@ ofstream TraceFileOut;
 bool TraceVerbose = false;
 bool HeadlessMode = false;
 bool DeterministicOpenBus = false;
+bool DebugMode = false;
+vector<Uint16> TraceWriteAddresses;
 Cpu65c02::CpuProfile SelectedCpuProfile = Cpu65c02::PROFILE_CMD;
 bool CpuProfileSetByCli = false;
 vector<Uint16> HaltExecutionPcs;
@@ -411,220 +414,83 @@ bool writeGuestCoreDump( EventLoop* emulator, const string& outPath )
 
 int main( int args, char** argv )
 {
+	string pasteFileArg;
+	string cpuProfileArg;
+	string traceStartPcArg;
+	vector<string> traceWriteArgTokens;
+	vector<string> haltExecutionArgTokens;
+	vector<string> requireHaltArgTokens;
 
-	for( int i = 1; i<args; i++ ) {
-		string arg = argv[i];
-		if( !arg.empty() && arg[0]!='-' ) {
-			if( EmuConfigPath.empty() ) {
-				EmuConfigPath = arg;
-				continue;
-			}
-			cerr << "Unexpected positional argument: " << arg << "\n";
+	CLI::App app("Ever2e");
+	app.set_help_flag("--help", "Show help");
+	app.add_option("emu-path", EmuConfigPath, "Path to required .emu config")->required();
+	app.add_option("--paste-file", pasteFileArg, "Paste script file path");
+	app.add_option("--guest-core-dump", GuestCoreDumpFile, "Write guest core dump to file");
+	app.add_flag("--print-text-at-exit", PrintTextAtExit, "Print text screen at exit");
+	app.add_flag("--print-cpu-state-at-exit", PrintCpuStateAtExit, "Print CPU state at exit");
+	app.add_option("--steps", CpuStepLimit, "Step limit")->check(CLI::NonNegativeNumber);
+	app.add_option("--trace-steps-from", TraceStepsFrom, "Console trace start step")->check(CLI::NonNegativeNumber);
+	app.add_option("--trace-steps-count", TraceStepsCount, "Console trace step count")->check(CLI::NonNegativeNumber);
+	app.add_option("--trace-file", TraceFilePath, "CSV trace output path");
+	app.add_flag("--trace-verbose", TraceVerbose, "Verbose CSV trace format");
+	app.add_option("--trace-start-pc", traceStartPcArg, "Hex start PC (e.g. 0x2000)");
+	app.add_option("--trace-write", traceWriteArgTokens, "Trace writes to hex address list")->delimiter(',');
+	app.add_option("--halt-execution", haltExecutionArgTokens, "Stop when PC reaches address list")->delimiter(',');
+	app.add_option("--require-halt-pc", requireHaltArgTokens, "Require final PC to be in address list")->delimiter(',');
+	app.add_flag("--headless", HeadlessMode, "Run without video/audio output");
+	app.add_flag("--deterministic-open-bus", DeterministicOpenBus, "Force deterministic open-bus reads");
+	app.add_flag("--debug", DebugMode, "Enable debug instrumentation");
+	app.add_option("--cpu-profile", cpuProfileArg, "CPU profile: cmd|wdc");
+
+	try {
+		app.parse(args, argv);
+	}
+	catch( const CLI::ParseError& e ) {
+		return app.exit(e);
+	}
+
+	if( !pasteFileArg.empty() )
+		InputFileName = pasteFileArg.c_str();
+
+	if( !cpuProfileArg.empty() ) {
+		if( !parseCpuProfileArg(cpuProfileArg, SelectedCpuProfile) ) {
+			cerr << "Invalid value for --cpu-profile (expected cmd|wdc)\n";
 			return 1;
 		}
-		if( arg == "--help" ) {
-			cout << "Usage: ever2e <emu-path> [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-verbose] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
-			return 0;
-		}
-		if( arg == "--paste-file" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --paste-file\n";
-				return 1;
-			}
-			InputFileName = argv[++i];
-			continue;
-		}
-		if( arg.find("--paste-file=")==0 ) {
-			InputFileName = argv[i] + (sizeof("--paste-file=")-1);
-			continue;
-		}
-		if( arg == "--guest-core-dump" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --guest-core-dump\n";
-				return 1;
-			}
-			GuestCoreDumpFile = argv[++i];
-			continue;
-		}
-		if( arg.find("--guest-core-dump=")==0 ) {
-			GuestCoreDumpFile = arg.substr(sizeof("--guest-core-dump=")-1);
-			continue;
-		}
-		if( arg == "--print-text-at-exit" ) {
-			PrintTextAtExit = true;
-			continue;
-		}
-		if( arg == "--print-cpu-state-at-exit" ) {
-			PrintCpuStateAtExit = true;
-			continue;
-		}
-		if( arg == "--headless" ) {
-			HeadlessMode = true;
-			continue;
-		}
-		if( arg == "--deterministic-open-bus" ) {
-			DeterministicOpenBus = true;
-			continue;
-		}
-		if( arg == "--cpu-profile" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --cpu-profile\n";
-				return 1;
-			}
-			if( !parseCpuProfileArg(argv[++i], SelectedCpuProfile) ) {
-				cerr << "Invalid value for --cpu-profile (expected cmd|wdc)\n";
-				return 1;
-			}
-			CpuProfileSetByCli = true;
-			continue;
-		}
-		if( arg.find("--cpu-profile=")==0 ) {
-			if( !parseCpuProfileArg(arg.substr(sizeof("--cpu-profile=")-1), SelectedCpuProfile) ) {
-				cerr << "Invalid value for --cpu-profile (expected cmd|wdc)\n";
-				return 1;
-			}
-			CpuProfileSetByCli = true;
-			continue;
-		}
-		if( arg == "--steps" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --steps\n";
-				return 1;
-			}
-			CpuStepLimit = strtoll(argv[++i], NULL, 10);
-			if( CpuStepLimit<0 ) {
-				cerr << "Invalid value for --steps\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg.find("--steps=")==0 ) {
-			CpuStepLimit = strtoll(arg.c_str() + (sizeof("--steps=")-1), NULL, 10);
-			if( CpuStepLimit<0 ) {
-				cerr << "Invalid value for --steps\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg == "--trace-file" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --trace-file\n";
-				return 1;
-			}
-			TraceFilePath = argv[++i];
-			continue;
-		}
-		if( arg.find("--trace-file=")==0 ) {
-			TraceFilePath = arg.substr(sizeof("--trace-file=")-1);
-			continue;
-		}
-		if( arg == "--trace-verbose" ) {
-			TraceVerbose = true;
-			continue;
-		}
-		if( arg == "--trace-start-pc" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --trace-start-pc\n";
-				return 1;
-			}
-			if( !parseHexWordArg(argv[++i], TraceStartPc) ) {
-				cerr << "Invalid value for --trace-start-pc\n";
-				return 1;
-			}
-			TraceStartPcSet = true;
-			continue;
-		}
-		if( arg.find("--trace-start-pc=")==0 ) {
-			if( !parseHexWordArg(arg.substr(sizeof("--trace-start-pc=")-1), TraceStartPc) ) {
-				cerr << "Invalid value for --trace-start-pc\n";
-				return 1;
-			}
-			TraceStartPcSet = true;
-			continue;
-		}
-		if( arg == "--trace-steps-from" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --trace-steps-from\n";
-				return 1;
-			}
-			TraceStepsFrom = strtoll(argv[++i], NULL, 10);
-			if( TraceStepsFrom<0 ) {
-				cerr << "Invalid value for --trace-steps-from\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg.find("--trace-steps-from=")==0 ) {
-			TraceStepsFrom = strtoll(arg.c_str() + (sizeof("--trace-steps-from=")-1), NULL, 10);
-			if( TraceStepsFrom<0 ) {
-				cerr << "Invalid value for --trace-steps-from\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg == "--trace-steps-count" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --trace-steps-count\n";
-				return 1;
-			}
-			TraceStepsCount = strtoll(argv[++i], NULL, 10);
-			if( TraceStepsCount<0 ) {
-				cerr << "Invalid value for --trace-steps-count\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg.find("--trace-steps-count=")==0 ) {
-			TraceStepsCount = strtoll(arg.c_str() + (sizeof("--trace-steps-count=")-1), NULL, 10);
-			if( TraceStepsCount<0 ) {
-				cerr << "Invalid value for --trace-steps-count\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg == "--halt-execution" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --halt-execution\n";
-				return 1;
-			}
-			if( !appendWordListArg(argv[++i], HaltExecutionPcs) ) {
-				cerr << "Invalid value for --halt-execution\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg.find("--halt-execution=")==0 ) {
-			if( !appendWordListArg(arg.substr(sizeof("--halt-execution=")-1), HaltExecutionPcs) ) {
-				cerr << "Invalid value for --halt-execution\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg == "--require-halt-pc" ) {
-			if( i+1>=args ) {
-				cerr << "Missing value for --require-halt-pc\n";
-				return 1;
-			}
-			if( !appendWordListArg(argv[++i], RequiredHaltPcs) ) {
-				cerr << "Invalid value for --require-halt-pc\n";
-				return 1;
-			}
-			continue;
-		}
-		if( arg.find("--require-halt-pc=")==0 ) {
-			if( !appendWordListArg(arg.substr(sizeof("--require-halt-pc=")-1), RequiredHaltPcs) ) {
-				cerr << "Invalid value for --require-halt-pc\n";
-				return 1;
-			}
-			continue;
-		}
-		cerr << "Unrecognized argument: " << arg << "\n";
-		return 1;
+		CpuProfileSetByCli = true;
 	}
-	if( EmuConfigPath.empty() ) {
-		cerr << "Missing required <emu-path> positional argument.\n";
-		cerr << "Run with --help for usage.\n";
-		return 1;
+
+	if( !traceStartPcArg.empty() ) {
+		if( !parseHexWordArg(traceStartPcArg, TraceStartPc) ) {
+			cerr << "Invalid value for --trace-start-pc\n";
+			return 1;
+		}
+		TraceStartPcSet = true;
+	}
+
+	for( size_t i = 0; i<traceWriteArgTokens.size(); i++ ) {
+		Uint16 value;
+		if( !parseHexWordArg(traceWriteArgTokens[i], value) ) {
+			cerr << "Invalid value for --trace-write\n";
+			return 1;
+		}
+		TraceWriteAddresses.push_back(value);
+	}
+	for( size_t i = 0; i<haltExecutionArgTokens.size(); i++ ) {
+		Uint16 value;
+		if( !parseHexWordArg(haltExecutionArgTokens[i], value) ) {
+			cerr << "Invalid value for --halt-execution\n";
+			return 1;
+		}
+		HaltExecutionPcs.push_back(value);
+	}
+	for( size_t i = 0; i<requireHaltArgTokens.size(); i++ ) {
+		Uint16 value;
+		if( !parseHexWordArg(requireHaltArgTokens[i], value) ) {
+			cerr << "Invalid value for --require-halt-pc\n";
+			return 1;
+		}
+		RequiredHaltPcs.push_back(value);
 	}
 
 	if( HeadlessMode ) {
@@ -641,6 +507,8 @@ int main( int args, char** argv )
 		}
 		SelectedCpuProfile = envProfile;
 	}
+	if( DebugMode )
+		setenv("EVER2E_DEBUG", "1", 1);
 
 	vector<PeripheralCard16bit*> ownedSlotCards;
 	EmuConfig emuConfig;
@@ -655,6 +523,10 @@ int main( int args, char** argv )
 	EventLoop emulator(SelectedCpuProfile, romPath);
 	installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
 	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);
+	emulator.setDebugMenuToggle(DebugMode);
+	emulator.memory->clearTraceWriteAddresses();
+	for( size_t i = 0; i<TraceWriteAddresses.size(); i++ )
+		emulator.memory->addTraceWriteAddress(TraceWriteAddresses[i]);
 	if( !TraceFilePath.empty() ) {
 		TraceFileOut.open(TraceFilePath.c_str(), ios::out | ios::trunc);
 		if( !TraceFileOut.is_open() ) {

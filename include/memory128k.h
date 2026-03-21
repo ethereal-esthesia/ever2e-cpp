@@ -31,6 +31,7 @@
 #include <fstream>
 #include <cassert>
 #include <string>
+#include <set>
 #include "cpu65c02.h"
 #include "mon560x192.h"
 #include "speaker1bit.h"
@@ -71,9 +72,13 @@ class Memory128k
 
 	unsigned int toggleMod;
 	bool deterministicOpenBusHigh;
+	std::set<Uint16> traceWriteAddresses;
+	static const char TRACE_WRITE_PREFIX[];
 
 	int accessCount;
 	bool dumpOnDestroy;
+
+	void _traceWriteIfNeeded( const char* source, Uint16 address, Uint8 writeByte, Uint8 mainBefore, Uint8 auxBefore, Uint8 mainAfter, Uint8 auxAfter );
 
 	void _setMemoryLayout( const MemoryBlock *layout );
 
@@ -174,6 +179,10 @@ public:
 	void putMem( Uint16 address, Uint8 byte );
 		// "poke" memory
 		// "noCount" should be used by CPU or diagnostic routines only to combine multiple accesses and save on design complexity
+
+	void putMemRange( int page, Uint16 startAddress, const Uint8* bytes, Uint32 size );
+		// Writes bytes directly into RAM page memory (0=main, 1=aux) without bus-side effects.
+		// Intended for state restore and bulk memory initialization paths.
 	
 	Uint8 getMem( Uint16 address );
 		// "peek" memory
@@ -213,6 +222,10 @@ public:
 	void setDeterministicOpenBusHigh( bool enabled );
 
 	bool getDeterministicOpenBusHigh() const;
+
+	void addTraceWriteAddress( Uint16 address );
+
+	void clearTraceWriteAddresses();
 
 	void setRomFilePath( const std::string& path );
 	

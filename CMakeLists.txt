@@ -36,6 +36,7 @@ else()
 endif()
 
 add_executable(ever2e "${CMAKE_SOURCE_DIR}/src/ever2e.cpp")
+target_include_directories(ever2e PRIVATE "${CMAKE_SOURCE_DIR}/third_party/CLI/include")
 target_link_libraries(ever2e PRIVATE ever2e_core)
 
 add_executable(microcode_tests ${EVER2E_TEST_SRC})
