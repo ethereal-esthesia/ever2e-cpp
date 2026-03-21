@@ -946,12 +946,8 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 			// Peripheral card ROM at $C3XX
 			if( slotCard[3] != NULL )
 				return slotCard[slot]->getMem256b(address&0x00ff);
-			else {
-#ifdef _MEMORY_TEST_OUTPUT	
-				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
-#endif	
+			else
 				return _readFloatingBus();
-			}
 			
 		}
 		
@@ -968,12 +964,8 @@ Uint8 Memory128k::_readSlot( Uint16 address )
 			// Peripheral card ROM at $CNXX
 			if( slotCard[slot] != NULL )
 				return slotCard[slot]->getMem256b(address&0x00ff);
-			else {
-#ifdef _MEMORY_TEST_OUTPUT	
-				cerr << "Warning: invalid read from peripheral memory at " << hex << setw(4) << (int) address << "\n";
-#endif	
+			else
 				return _readFloatingBus();
-			}
 		}
 	}
 	
