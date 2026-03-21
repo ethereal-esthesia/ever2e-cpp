@@ -34,6 +34,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include "SDL.h"
 #include "mon560x192.h"
 #include "memory128k.h"
@@ -70,6 +71,14 @@ class Cpu65c02
 	};
 
 public:
+
+	struct OpcodeDescriptor {
+		uint8_t machineCode;
+		uint8_t mnemonic;
+		uint8_t addressMode;
+		uint8_t instrSize;
+		uint8_t cycleTime;
+	};
 
 	enum OpcodeMnemonic
 	{
@@ -210,6 +219,8 @@ public:
 		// This will not effect other hardware cycling or speaker pitch
 
 	int getMultiplier();
+
+	static OpcodeDescriptor getOpcodeDescriptor( uint16_t machineCode );
 
 	void store( SaveState& state );
 
