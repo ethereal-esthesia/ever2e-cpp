@@ -59,6 +59,7 @@ class Memory128k
 
 	Uint8 ramPage64k[TOTAL_RAM_PAGES<<16];
 	PeripheralCard16bit* slotCard[8];   // Pointers to cards in slots 1-7
+	Uint8 expansionRomSlot;             // Latched slot selected by latest Cnxx access for C800-CFFE
 	Uint8 rom16k[0x4000];  // 16k language card (LC) ROM 
 	std::string romFilePath;
 
