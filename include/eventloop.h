@@ -132,7 +132,7 @@ public:
 	class Keyboard2e* keyboard;     // The keyboard needs access to the monitor for syncing purposes and the CPU for RESET interrupt
 	class Speaker1bit* speaker;     // Requires no access to other hardware, returns sound information via polling
 
-	EventLoop();
+	EventLoop( Cpu65c02::CpuProfile cpuProfile = Cpu65c02::PROFILE_CMD );
 
 	~EventLoop();
 	

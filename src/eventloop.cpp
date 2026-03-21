@@ -201,7 +201,7 @@ void EventLoop::_helpMenuCycle()
 	
 }
 
-EventLoop::EventLoop()
+EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile )
 {
 
 #ifdef _CONSOLE_OUT
@@ -216,7 +216,7 @@ EventLoop::EventLoop()
 	memory = new Memory128k();
 	monitor = new Monitor560x192(surface, memory);
 	monitor->setOffset( (WINDOW_X_SIZE-X_SIZE)>>1, (WINDOW_Y_SIZE-Y_SIZE)>>1 );
-	cpu = new Cpu65c02(memory);                
+	cpu = new Cpu65c02(memory, cpuProfile);                
 	cpuMult = 1;
 	cpu->setMultiplier(cpuMult);           
 	keyboard = new Keyboard2e(monitor, cpu);  
