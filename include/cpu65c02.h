@@ -259,11 +259,20 @@ public:
 	Uint16 getProgramCounter() const;
 		// Returns current program counter
 
+	Uint8 getRegisterA() const;
+	Uint8 getRegisterX() const;
+	Uint8 getRegisterY() const;
+	Uint8 getRegisterP() const;
+	Uint8 getRegisterS() const;
+
 	std::string getOpcodeString();
 		// Returns decoded opcode and operands
 		
 	std::string getRegisterString();
 		// Returns list of all operands
+
+	static const char* getOpcodeMnemonicName( uint8_t mnemonic );
+	static const char* getAddressModeName( uint8_t addressMode );
 
 	double noteToFreq( double p );
 

@@ -48,6 +48,7 @@ bool TraceStartPcSet = false;
 Uint16 TraceStartPc = 0;
 bool TraceStarted = false;
 ofstream TraceFileOut;
+bool TraceVerbose = false;
 bool HeadlessMode = false;
 bool DeterministicOpenBus = false;
 Cpu65c02::CpuProfile SelectedCpuProfile = Cpu65c02::PROFILE_CMD;
@@ -200,10 +201,33 @@ bool hostCycle( EventLoop *emulator )
 				TraceStarted = true;
 			if( TraceStarted ) {
 				Uint8 opcode = emulator->memory->getMem(pc);
-				TraceFileOut << CpuStepCount << ','
-						<< hex << uppercase << setw(4) << setfill('0') << (int)pc << ','
-						<< setw(2) << (int)opcode << dec << ','
-						<< '"' << emulator->cpu->getRegisterString() << '"' << "\n";
+				if( TraceVerbose ) {
+					Uint8 opc1 = opcode;
+					Uint8 opc2 = emulator->memory->getMem((Uint16)(pc + 1));
+					Uint8 opc3 = emulator->memory->getMem((Uint16)(pc + 2));
+					Cpu65c02::OpcodeDescriptor desc =
+							Cpu65c02::getOpcodeDescriptorForProfile(emulator->cpu->getCpuProfile(), opcode);
+					TraceFileOut << CpuStepCount << ','
+							<< hex << uppercase << setw(4) << setfill('0') << (int)pc << ','
+							<< setw(2) << (int)opcode << ','
+							<< setw(2) << (int)opc1 << ','
+							<< setw(2) << (int)opc2 << ','
+							<< setw(2) << (int)opc3 << ','
+							<< setw(2) << (int)emulator->cpu->getRegisterA() << ','
+							<< setw(2) << (int)emulator->cpu->getRegisterX() << ','
+							<< setw(2) << (int)emulator->cpu->getRegisterY() << ','
+							<< setw(2) << (int)emulator->cpu->getRegisterP() << ','
+							<< setw(2) << (int)emulator->cpu->getRegisterS() << ','
+							<< '"' << Cpu65c02::getOpcodeMnemonicName(desc.mnemonic) << '"' << ','
+							<< '"' << Cpu65c02::getAddressModeName(desc.addressMode) << '"' << ','
+							<< '"' << emulator->cpu->getRegisterString() << '"' << dec << "\n";
+				}
+				else {
+					TraceFileOut << CpuStepCount << ','
+							<< hex << uppercase << setw(4) << setfill('0') << (int)pc << ','
+							<< setw(2) << (int)opcode << dec << ','
+							<< '"' << emulator->cpu->getRegisterString() << '"' << "\n";
+				}
 			}
 		}
 		if( TraceStepsFrom>=0 && TraceStepsCount>0 &&
@@ -241,7 +265,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-verbose] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -334,6 +358,10 @@ int main( int args, char** argv )
 		}
 		if( arg.find("--trace-file=")==0 ) {
 			TraceFilePath = arg.substr(sizeof("--trace-file=")-1);
+			continue;
+		}
+		if( arg == "--trace-verbose" ) {
+			TraceVerbose = true;
 			continue;
 		}
 		if( arg == "--trace-start-pc" ) {
@@ -459,7 +487,10 @@ int main( int args, char** argv )
 			cerr << "Unable to open trace file: \"" << TraceFilePath << "\"\n";
 			return 1;
 		}
-		TraceFileOut << "step,pc,opcode,registers\n";
+		if( TraceVerbose )
+			TraceFileOut << "step,pc,opcode,opc1,opc2,opc3,a,x,y,p,s,mnemonic,mode,registers\n";
+		else
+			TraceFileOut << "step,pc,opcode,registers\n";
 	}
 	if( HeadlessMode )
 		emulator.setUnthrottled(true);
