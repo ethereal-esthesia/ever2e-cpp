@@ -695,7 +695,7 @@ void EventLoop::cycle()
 		elapsedTimeNanoseconds = 0;
 
 	// Continue emulation sequence on the microsecond timescale
-	while( elapsedTimeNanoseconds > 0 ) {
+	while( elapsedTimeNanoseconds > 0 && !exitStatus ) {
 		if( stepPhaseActive && stepPhaseStopRequested )
 			break;
 
@@ -734,6 +734,8 @@ void EventLoop::cycle()
 			else
 				idleCycle = false;
 		}
+		if( exitStatus )
+			break;
 
 
 		// Cycle hardware
