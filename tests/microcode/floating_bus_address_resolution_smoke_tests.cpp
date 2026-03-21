@@ -1,6 +1,7 @@
 #include "test_harness.h"
 
 #include <limits.h>
+#include <sstream>
 #include <string>
 #include <unistd.h>
 
@@ -80,9 +81,21 @@ void assertRangeEveryXY(
     const int totalCycles = kBobHorizontalScans * kBobVerticalScans;
     for( int i = 0; i<totalCycles; ++i ) {
         const int addr = static_cast<int>(monitor.getFloatingBusAddress());
-        E2TEST_ASSERT_TRUE(addr>=loExpected && addr<=hiExpected);
+        if( !(addr>=loExpected && addr<=hiExpected) ) {
+            std::ostringstream oss;
+            oss << "out-of-range addr=0x" << std::hex << addr
+                << " h=" << std::dec << (int) monitor.getHRefreshCount()
+                << " v=" << (int) monitor.getVRefreshCount()
+                << " expected=[0x" << std::hex << loExpected << ",0x" << hiExpected << "]";
+            e2test::fail(oss.str());
+        }
         monitor.cycle();
     }
+}
+
+bool isNonHiresTextWindow(int addr)
+{
+    return addr>=kTextBaseLo && addr<=kTextBaseHi;
 }
 
 } // namespace
@@ -99,7 +112,12 @@ E2TEST_CASE(floatingBusAddressSmokeTextModeRangeAcrossEveryXY)
     setDisplaySwitches(memory, true, false, false, false, false);
     monitor.commitSwitches();
     monitor.resetAll();
-    assertRangeEveryXY(monitor, kTextBaseLo, kTextBaseHi);
+    const int totalCycles = kBobHorizontalScans * kBobVerticalScans;
+    for( int i = 0; i<totalCycles; ++i ) {
+        const int addr = static_cast<int>(monitor.getFloatingBusAddress());
+        E2TEST_ASSERT_TRUE(isNonHiresTextWindow(addr));
+        monitor.cycle();
+    }
 }
 
 E2TEST_CASE(floatingBusAddressSmokeHiresPage1RangeAcrossEveryXY)
@@ -150,7 +168,7 @@ E2TEST_CASE(floatingBusAddressSmokeMixedModeRangeAcrossEveryXY)
         const int v = static_cast<int>(monitor.getVRefreshCount());
         const int addr = static_cast<int>(monitor.getFloatingBusAddress());
         if( mixedUsesTextBand(v) )
-            E2TEST_ASSERT_TRUE(addr>=kTextBaseLo && addr<=kTextBaseHi);
+            E2TEST_ASSERT_TRUE(isNonHiresTextWindow(addr));
         else
             E2TEST_ASSERT_TRUE(addr>=kHiresPage1Lo && addr<=kHiresPage1Hi);
         monitor.cycle();

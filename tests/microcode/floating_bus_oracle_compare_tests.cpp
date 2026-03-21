@@ -6,15 +6,13 @@
 #include <limits.h>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <unistd.h>
 #include <vector>
 
-#include "cpu65c02.h"
-#include "keyboard2e.h"
 #include "memory128k.h"
 #include "mon560x192.h"
 #include "pixel.h"
-#include "speaker1bit.h"
 
 namespace {
 
@@ -110,46 +108,65 @@ E2TEST_CASE(floatingBusBobReferenceMatchesEver2ePyOracleLineByLine)
     const std::string cppRoot = (cppRootEnv && *cppRootEnv) ? cppRootEnv : "/Users/shane/Project/ever2e-cpp";
     const std::string pyRoot = (pyRootEnv && *pyRootEnv) ? pyRootEnv : "/Users/shane/Project/ever2e-py";
     const std::string scriptPath = cppRoot + "/tools/gen_floating_bus_oracle_py.py";
-    const int cycles = 2048;
+    const int cycles = 1024;
 
     PixelSurface surface(560, 384, 32);
     Memory128k memory;
     Monitor560x192 monitor(&surface, &memory);
-    Cpu65c02 cpu(&memory, Cpu65c02::PROFILE_CMD);
-    Speaker1bit speaker;
-    Keyboard2e keyboard(&monitor, &cpu);
-    memory.putPeripheral(&cpu, &monitor, &speaker, &keyboard);
+    memory.putPeripheral(NULL, &monitor, NULL, NULL);
 
     std::vector<Uint8> pattern(0x10000);
     for( int i = 0; i<0x10000; ++i )
         pattern[(size_t) i] = (Uint8) (i & 0xFF);
     memory.putMemRange(0, 0x0000, pattern.data(), (Uint32) pattern.size());
 
-    const bool text = false;
-    const bool mixed = true;
-    const bool hires = true;
-    const bool page2 = false;
-    const bool store80 = false;
-    setDisplaySwitches(memory, text, mixed, hires, page2, store80);
+    const std::vector<std::tuple<bool, bool, bool, bool, bool>> modes = {
+        {true,  false, false, false, false}, // text
+        {false, false, true,  false, false}, // hires page1
+        {false, false, true,  true,  false}, // hires page2
+        {false, true,  true,  false, false}, // mixed hires/text
+        {false, false, false, false, false}, // lores
+        {false, false, true,  false, true }, // hires with 80store
+        {true,  false, false, true,  false}, // text page2
+        {false, true,  true,  true,  false}, // mixed with page2
+    };
 
-    std::ostringstream cmd;
-    cmd << "python3 " << scriptPath
-        << " --py-root " << pyRoot
-        << " --cycles " << cycles
-        << " --text " << (text ? 1 : 0)
-        << " --mixed " << (mixed ? 1 : 0)
-        << " --hires " << (hires ? 1 : 0)
-        << " --page2 " << (page2 ? 1 : 0)
-        << " --store80 " << (store80 ? 1 : 0);
-    std::vector<std::string> pyLines = runCommandLines(cmd.str());
-    std::vector<std::string> bobLines = buildBobLines(memory, monitor, cycles);
+    for( const auto& mode : modes ) {
+        const bool text = std::get<0>(mode);
+        const bool mixed = std::get<1>(mode);
+        const bool hires = std::get<2>(mode);
+        const bool page2 = std::get<3>(mode);
+        const bool store80 = std::get<4>(mode);
 
-    E2TEST_ASSERT_EQ(pyLines.size(), bobLines.size());
-    for( size_t i = 0; i<pyLines.size(); ++i ) {
-        if( pyLines[i] != bobLines[i] ) {
-            std::ostringstream oss;
-            oss << "line mismatch at " << i << " expected=\"" << pyLines[i] << "\" actual=\"" << bobLines[i] << "\"";
-            e2test::fail(oss.str());
+        setDisplaySwitches(memory, text, mixed, hires, page2, store80);
+        monitor.commitSwitches();
+        monitor.resetAll();
+
+        std::ostringstream cmd;
+        cmd << "python3 " << scriptPath
+            << " --py-root " << pyRoot
+            << " --cycles " << cycles
+            << " --text " << (text ? 1 : 0)
+            << " --mixed " << (mixed ? 1 : 0)
+            << " --hires " << (hires ? 1 : 0)
+            << " --page2 " << (page2 ? 1 : 0)
+            << " --store80 " << (store80 ? 1 : 0);
+        std::vector<std::string> pyLines = runCommandLines(cmd.str());
+        std::vector<std::string> bobLines = buildBobLines(memory, monitor, cycles);
+
+        E2TEST_ASSERT_EQ(pyLines.size(), bobLines.size());
+        for( size_t i = 0; i<pyLines.size(); ++i ) {
+            if( pyLines[i] != bobLines[i] ) {
+                std::ostringstream oss;
+                oss << "mode(text=" << (text ? 1 : 0)
+                    << ",mixed=" << (mixed ? 1 : 0)
+                    << ",hires=" << (hires ? 1 : 0)
+                    << ",page2=" << (page2 ? 1 : 0)
+                    << ",store80=" << (store80 ? 1 : 0)
+                    << ") line mismatch at " << i
+                    << " expected=\"" << pyLines[i] << "\" actual=\"" << bobLines[i] << "\"";
+                e2test::fail(oss.str());
+            }
         }
     }
 }
