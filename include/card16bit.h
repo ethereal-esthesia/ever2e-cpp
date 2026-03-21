@@ -29,14 +29,15 @@
 
 #include <string>
 #include <cassert>
+#include <array>
 #include "SDL_stdinc.h"
 
 
 class PeripheralCard16bit
 {
 
-	const Uint8 *slotRom256b;  // Pointer to the 256 byte memory that will be read at C_00h, where "_" is the slot number
-	const Uint8 *expRom2k;  // Pointer to the 2k memory that will be read at C800h
+	std::array<Uint8, 256> slotRom256b;  // 256-byte slot ROM window at Cn00
+	std::array<Uint8, 2048> expRom2k;    // 2KB expansion ROM window at C800
 	std::string idTag;
 	
 public:
@@ -49,6 +50,12 @@ public:
 	Uint8 getMem256b( Uint8 offset );
 	
 	Uint8 getMem2k( Uint16 offset );
+
+	void setSlotPattern( Uint8 value );
+
+	void setIdTag( const std::string& id );
+
+	const std::string& getIdTag() const;
 
 };
 
