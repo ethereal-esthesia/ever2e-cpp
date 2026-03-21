@@ -251,3 +251,52 @@ E2TEST_CASE(allOpcodesMicrocodeLengthMatchesCpuCycleTable)
         e2test::fail(oss.str());
     }
 }
+
+E2TEST_CASE(ldaAbsoluteCycleScript)
+{
+    const Cpu65c02OpcodeView instr = Cpu65c02Microcode::opcodeForByte(0xAD); // LDA abs
+    const std::vector<MicroOp> noCross = instr.getExpectedMnemonicOrder(false);
+    E2TEST_ASSERT_EQ(4, static_cast<int>(noCross.size()));
+    E2TEST_ASSERT_TRUE(noCross[0]==MicroOp::M_FETCH_OPCODE);
+    E2TEST_ASSERT_TRUE(noCross[1]==MicroOp::M_FETCH_OPERAND_LO);
+    E2TEST_ASSERT_TRUE(noCross[2]==MicroOp::M_FETCH_OPERAND_HI);
+    E2TEST_ASSERT_TRUE(noCross[3]==MicroOp::M_READ_EA);
+    E2TEST_ASSERT_EQ(3, instr.getOperandReadCycleOffset(false));
+}
+
+E2TEST_CASE(ldaAbsoluteXCrossAddsDummyRead)
+{
+    const Cpu65c02OpcodeView instr = Cpu65c02Microcode::opcodeForByte(0xBD); // LDA abs,X
+    const std::vector<MicroOp> noCross = instr.getExpectedMnemonicOrder(false);
+    const std::vector<MicroOp> cross = instr.getExpectedMnemonicOrder(true);
+    E2TEST_ASSERT_EQ(4, static_cast<int>(noCross.size()));
+    E2TEST_ASSERT_EQ(5, static_cast<int>(cross.size()));
+    E2TEST_ASSERT_TRUE(noCross[3]==MicroOp::M_READ_EA);
+    E2TEST_ASSERT_TRUE(cross[3]==MicroOp::M_READ_DUMMY);
+    E2TEST_ASSERT_TRUE(cross[4]==MicroOp::M_READ_EA);
+    E2TEST_ASSERT_EQ(3, instr.getOperandReadCycleOffset(false));
+    E2TEST_ASSERT_EQ(4, instr.getOperandReadCycleOffset(true));
+}
+
+E2TEST_CASE(staAbsoluteHasWriteCycle)
+{
+    const Cpu65c02OpcodeView instr = Cpu65c02Microcode::opcodeForByte(0x8D); // STA abs
+    const std::vector<MicroOp> script = instr.getExpectedMnemonicOrder(false);
+    E2TEST_ASSERT_EQ(4, static_cast<int>(script.size()));
+    E2TEST_ASSERT_TRUE(script[0]==MicroOp::M_FETCH_OPCODE);
+    E2TEST_ASSERT_TRUE(script[1]==MicroOp::M_FETCH_OPERAND_LO);
+    E2TEST_ASSERT_TRUE(script[2]==MicroOp::M_FETCH_OPERAND_HI);
+    E2TEST_ASSERT_TRUE(script[3]==MicroOp::M_WRITE_EA);
+    E2TEST_ASSERT_EQ(-1, instr.getOperandReadCycleOffset(false));
+}
+
+E2TEST_CASE(incZeroPageIsReadModifyWrite)
+{
+    const Cpu65c02OpcodeView instr = Cpu65c02Microcode::opcodeForByte(0xE6); // INC zpg
+    const std::vector<MicroOp> script = instr.getExpectedMnemonicOrder(false);
+    E2TEST_ASSERT_TRUE(instr.getAccessType()==AccessType::AT_RMW);
+    E2TEST_ASSERT_EQ(5, static_cast<int>(script.size()));
+    E2TEST_ASSERT_TRUE(script[2]==MicroOp::M_READ_EA);
+    E2TEST_ASSERT_TRUE(script[3]==MicroOp::M_WRITE_EA_DUMMY);
+    E2TEST_ASSERT_TRUE(script[4]==MicroOp::M_WRITE_EA);
+}

@@ -53,9 +53,14 @@ void Memory128k::coldReset()
 
 	ifstream romFile;
 
-	const char fileName[] = "apple2e.rom";
-
-	romFile.open(fileName, ios::in | ios::binary);
+	string fileName = romFilePath.empty() ? string("apple2e.rom") : romFilePath;
+	romFile.open(fileName.c_str(), ios::in | ios::binary);
+	if( !romFile ) {
+		// Compatibility fallback for release bundles that ship upper-case ROM names.
+		fileName = "APPLE2E.ROM";
+		romFile.clear();
+		romFile.open(fileName.c_str(), ios::in | ios::binary);
+	}
 	if( !romFile ) {
 		cerr << "Could not read " << fileName << endl;
 		exit(1);
@@ -1138,12 +1143,13 @@ void Memory128k::_commitSwitches()
 		monitor->commitSwitches();
 }
 	
-Memory128k::Memory128k()
+Memory128k::Memory128k( const std::string& initialRomFilePath )
 {
 
 	// See Sather 5-26 for basic memory layout
 
 	this->monitor = NULL;
+	romFilePath = initialRomFilePath.empty() ? string("apple2e.rom") : initialRomFilePath;
 	deterministicOpenBusHigh = false;
 	const MemoryBlock MEMORY_LAYOUT[] = 
 	{
@@ -1271,4 +1277,9 @@ void Memory128k::setDeterministicOpenBusHigh( bool enabled )
 bool Memory128k::getDeterministicOpenBusHigh() const
 {
 	return deterministicOpenBusHigh;
+}
+
+void Memory128k::setRomFilePath( const std::string& path )
+{
+	romFilePath = path;
 }

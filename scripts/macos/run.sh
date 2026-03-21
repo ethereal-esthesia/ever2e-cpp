@@ -5,8 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build/macos}"
 OUTPUT_BIN="${OUTPUT_BIN:-$BUILD_DIR/ever2e}"
 RELEASE_DIR="$ROOT_DIR/release"
+REBUILD_ON_RUN="${REBUILD_ON_RUN:-1}"
 
-if [[ ! -x "$OUTPUT_BIN" ]]; then
+if [[ "$REBUILD_ON_RUN" == "1" || ! -x "$OUTPUT_BIN" ]]; then
   "$ROOT_DIR/scripts/macos/build.sh"
 fi
 

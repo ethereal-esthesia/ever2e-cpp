@@ -201,7 +201,7 @@ void EventLoop::_helpMenuCycle()
 	
 }
 
-EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile )
+EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPath )
 {
 
 #ifdef _CONSOLE_OUT
@@ -213,7 +213,7 @@ EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile )
 	surface = manager->getVideoSurface();
 	sound = new SoundBuffer();		
 	hostKeyboard = new HostKeyboard();		
-	memory = new Memory128k();
+	memory = new Memory128k(romPath.empty() ? string("apple2e.rom") : romPath);
 	monitor = new Monitor560x192(surface, memory);
 	monitor->setOffset( (WINDOW_X_SIZE-X_SIZE)>>1, (WINDOW_Y_SIZE-Y_SIZE)>>1 );
 	cpu = new Cpu65c02(memory, cpuProfile);                
