@@ -8,7 +8,7 @@ REBUILD_ON_RUN="${REBUILD_ON_RUN:-1}"
 PRESET="${PRESET:-macos-release}"
 
 if [[ "$REBUILD_ON_RUN" == "1" || ! -x "$OUTPUT_BIN" ]]; then
-  "$ROOT_DIR/scripts/macos/build.sh"
+  BUILD_TARGETS="${BUILD_TARGETS:-microcode_tests}" "$ROOT_DIR/scripts/macos/build.sh"
 fi
 
 if command -v ctest >/dev/null 2>&1; then
