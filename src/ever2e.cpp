@@ -30,6 +30,9 @@
 #include <sstream>
 #include <iomanip>
 #include <cstdint>
+#include <cctype>
+#include <map>
+#include <algorithm>
 #include "eventloop.h"
 
 
@@ -57,6 +60,121 @@ vector<Uint16> HaltExecutionPcs;
 vector<Uint16> RequiredHaltPcs;
 bool HaltedAtExecutionPc = false;
 Uint16 HaltedExecutionPc = 0;
+string EmuConfigPath;
+
+struct EmuConfig
+{
+	map<string, string> properties;
+	string sourcePath;
+};
+
+string trimString( const string& in )
+{
+	size_t start = 0;
+	while( start<in.size() && (in[start]==' ' || in[start]=='\t' || in[start]=='\r' || in[start]=='\n') )
+		start++;
+	size_t end = in.size();
+	while( end>start && (in[end-1]==' ' || in[end-1]=='\t' || in[end-1]=='\r' || in[end-1]=='\n') )
+		end--;
+	return in.substr(start, end-start);
+}
+
+bool hasCaseInsensitiveSuffix( const string& value, const string& suffix )
+{
+	if( value.size()<suffix.size() )
+		return false;
+	for( size_t i = 0; i<suffix.size(); i++ ) {
+		char a = (char) tolower((unsigned char) value[value.size()-suffix.size()+i]);
+		char b = (char) tolower((unsigned char) suffix[i]);
+		if( a!=b )
+			return false;
+	}
+	return true;
+}
+
+bool loadEmuConfig( const string& rawPath, EmuConfig& out )
+{
+	string path = rawPath;
+	if( !hasCaseInsensitiveSuffix(path, ".emu") )
+		path += ".emu";
+	ifstream in(path.c_str(), ios::in);
+	if( !in.is_open() )
+		return false;
+	string line;
+	while( getline(in, line) ) {
+		string t = trimString(line);
+		if( t.empty() || t[0]=='#' || t[0]==';' )
+			continue;
+		size_t eq = t.find('=');
+		size_t colon = t.find(':');
+		size_t split = string::npos;
+		if( eq!=string::npos && colon!=string::npos )
+			split = min(eq, colon);
+		else if( eq!=string::npos )
+			split = eq;
+		else
+			split = colon;
+		if( split==string::npos )
+			continue;
+		string key = trimString(t.substr(0, split));
+		string value = trimString(t.substr(split+1));
+		if( !key.empty() )
+			out.properties[key] = value;
+	}
+	out.sourcePath = path;
+	return true;
+}
+
+bool tryParseSlotPattern( const string& raw, Uint8& out )
+{
+	if( raw.empty() )
+		return false;
+	char* end = NULL;
+	unsigned long v = strtoul(raw.c_str(), &end, 0);
+	if( end==raw.c_str() || *end!='\0' || v>0xff )
+		return false;
+	out = (Uint8) v;
+	return true;
+}
+
+void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<PeripheralCard16bit*>& ownedCards )
+{
+	for( int slot = 1; slot<=7; slot++ ) {
+		string key = string("machine.layout.slot.") + char('0' + slot);
+		map<string, string>::const_iterator it = cfg.properties.find(key);
+		if( it==cfg.properties.end() || trimString(it->second).empty() ) {
+			emulator->memory->putSlot(slot, NULL);
+			continue;
+		}
+		string className = trimString(it->second);
+		if( className=="test.PatternSlotCard" ) {
+			Uint8 pattern = (Uint8) (slot & 0xff);
+			string patternKey = key + ".pattern";
+			map<string, string>::const_iterator pit = cfg.properties.find(patternKey);
+			if( pit!=cfg.properties.end() ) {
+				Uint8 parsedPattern;
+				if( tryParseSlotPattern(trimString(pit->second), parsedPattern) )
+					pattern = parsedPattern;
+				else
+					cerr << "Warning: invalid " << patternKey << " value in " << cfg.sourcePath
+						 << "; using slot default pattern\n";
+			}
+			PeripheralCard16bit* card = new PeripheralCard16bit();
+			card->setSlotPattern(pattern);
+			card->setIdTag(className);
+			ownedCards.push_back(card);
+			emulator->memory->putSlot(slot, card);
+			cout << "Slot " << slot << ": " << className << " pattern=0x"
+				 << hex << uppercase << setw(2) << setfill('0') << (int)pattern << dec << "\n";
+		}
+		else {
+			// JVM config compatibility: accept keys but keep slot empty when unsupported.
+			cerr << "Warning: unsupported slot class \"" << className
+				 << "\" for slot " << slot << " in " << cfg.sourcePath << "; leaving empty\n";
+			emulator->memory->putSlot(slot, NULL);
+		}
+	}
+}
 
 bool parseHexWordArg( const string& raw, Uint16& out )
 {
@@ -265,8 +383,20 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-verbose] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
+			cout << "Usage: ever2e [--emu <path>] [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-verbose] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
 			return 0;
+		}
+		if( arg == "--emu" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --emu\n";
+				return 1;
+			}
+			EmuConfigPath = argv[++i];
+			continue;
+		}
+		if( arg.find("--emu=")==0 ) {
+			EmuConfigPath = arg.substr(sizeof("--emu=")-1);
+			continue;
 		}
 		if( arg == "--paste-file" ) {
 			if( i+1>=args ) {
@@ -480,6 +610,15 @@ int main( int args, char** argv )
 	}
 
 	EventLoop emulator(SelectedCpuProfile);
+	vector<PeripheralCard16bit*> ownedSlotCards;
+	EmuConfig emuConfig;
+	if( !EmuConfigPath.empty() ) {
+		if( !loadEmuConfig(EmuConfigPath, emuConfig) ) {
+			cerr << "Unable to load .emu config: \"" << EmuConfigPath << "\"\n";
+			return 1;
+		}
+		installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
+	}
 	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);
 	if( !TraceFilePath.empty() ) {
 		TraceFileOut.open(TraceFilePath.c_str(), ios::out | ios::trunc);
@@ -532,6 +671,8 @@ int main( int args, char** argv )
 		return 1;
 	if( TraceFileOut.is_open() )
 		TraceFileOut.close();
+	for( size_t i = 0; i<ownedSlotCards.size(); i++ )
+		delete ownedSlotCards[i];
 	
 	return 0;
 

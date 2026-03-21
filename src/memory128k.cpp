@@ -86,8 +86,8 @@ void Memory128k::coldReset()
 
 void Memory128k::warmReset()
 {
-	// _TEXT and _MIXED statuses are not modified by a reset interrupt
-	switchState &= _TEXT | _MIXED;  // Sather 7-3, Sather I-5 suggests the Apple II reset operates differently than the Apple IIe
+	// Align warm reset defaults with JVM bus model: TEXT on, PAGE1, graphics switches off.
+	switchState = _TEXT;
 	_commitSwitches();
 }
 
@@ -217,6 +217,24 @@ Uint8 Memory128k::_readIo( Uint16 address )
 			// Bit 0-6 indicate ASCII code
 			keyboard->putStrobe();
 			return keyboard->getStrobe();
+
+		case 0xc001:
+		case 0xc002:
+		case 0xc003:
+		case 0xc004:
+		case 0xc005:
+		case 0xc006:
+		case 0xc007:
+		case 0xc008:
+		case 0xc009:
+		case 0xc00a:
+		case 0xc00b:
+		case 0xc00c:
+		case 0xc00d:
+		case 0xc00e:
+		case 0xc00f:
+			// Match JVM mapping: floating-bus readback for these write-only soft-switches.
+			return _readFloatingBus();
 
 		case 0xc011:
 			// Read inverted BANK1
@@ -402,6 +420,22 @@ Uint8 Memory128k::_readIo( Uint16 address )
 			// Bit 7 is used to indicate if shift or PB2 game button is pressed
 			// Bits 0-6 are undefined
 			return _randRead7bit() | ( (keyboard->getShiftKey()) << 7 ); /// || joystick->getButton(2)
+
+		case 0xc060:
+		case 0xc068:
+			// Cassette input defaults high on bit 7; preserve floating-bus low bits.
+			return (_readFloatingBus() & 0x7f) | 0x80;
+
+		case 0xc064:
+		case 0xc065:
+		case 0xc066:
+		case 0xc067:
+		case 0xc06c:
+		case 0xc06d:
+		case 0xc06e:
+		case 0xc06f:
+			// Paddle timer reads default bit 7 high when no countdown is active.
+			return (_readFloatingBus() & 0x7f) | 0x80;
 				
 		case 0xc080:
 			// Reset BANK1
@@ -594,17 +628,21 @@ Uint8 Memory128k::_readIo( Uint16 address )
 warningStub: ///
 #endif
 			if( address >= 0xC090 ) {
+				// Slot I/O soft-switch window: C090-C0FF maps as 16-byte windows for slots 1-7.
+				int slot = (address - 0xc080) >> 4;
+				if( slot>=1 && slot<=7 && slotCard[slot] != NULL )
+					return slotCard[slot]->getMem16b(address & 0x0f);
 #ifdef _MEMORY_TEST_OUTPUT	
 				cerr << "Warning: Peripheral read not implemented at address " << hex << setw(2) << (int) address << "\n";
 #endif
-				return 0;
+				return _readFloatingBus();
 			}
 			else {
 				// Undefined switch
 #ifdef _MEMORY_TEST_OUTPUT	
 				cerr << "Warning: Read to switch " << hex << setw(2) << (int) address << " not handled\n";
 #endif
-				return 0;
+				return _readFloatingBus();
 			}
 		
 	}
@@ -715,26 +753,141 @@ void Memory128k::_writeIo( Uint16 address, Uint8 byte )
 			break;
 
 		case 0xc080:
-		case 0xc081:
-		case 0xc082:
-		case 0xc083:
-		case 0xc084:
-		case 0xc085:
-		case 0xc086:
-		case 0xc087:
-		case 0xc088:
-		case 0xc089:
-		case 0xc08a:
-		case 0xc08b:
-		case 0xc08c:
-		case 0xc08d:
-		case 0xc08e:
-		case 0xc08f:
-			// Reset PREWRITE
+			resetSwitch(_BANK1);
+			setSwitch(_HRAMRD);
 			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc081:
+			resetSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
+			break;
+
+		case 0xc082:
+			resetSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc083:
+			resetSwitch(_BANK1);
+			setSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
+			break;
+
+		case 0xc084:
+			resetSwitch(_BANK1);
+			setSwitch(_HRAMRD);
+			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc085:
+			resetSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
+			break;
+
+		case 0xc086:
+			resetSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc087:
+			resetSwitch(_BANK1);
+			setSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
+			break;
+
+		case 0xc088:
+			setSwitch(_BANK1);
+			setSwitch(_HRAMRD);
+			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc089:
+			setSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
+			break;
+
+		case 0xc08a:
+			setSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc08b:
+			setSwitch(_BANK1);
+			setSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
+			break;
+
+		case 0xc08c:
+			setSwitch(_BANK1);
+			setSwitch(_HRAMRD);
+			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc08d:
+			setSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
+			break;
+
+		case 0xc08e:
+			setSwitch(_BANK1);
+			resetSwitch(_HRAMRD);
+			resetSwitch(_PREWRITE);
+			resetSwitch(_HRAMWRT);
+			break;
+
+		case 0xc08f:
+			setSwitch(_BANK1);
+			setSwitch(_HRAMRD);
+			if( getSwitch(_PREWRITE) )
+				setSwitch(_HRAMWRT);
+			else
+				setSwitch(_PREWRITE);
 			break;
 		
 		default:
+			if( address >= 0xc090 && address <= 0xc0ff ) {
+				// Mirror read/write soft-switch shape in slot windows for installed cards.
+				int slot = (address - 0xc080) >> 4;
+				if( slot>=1 && slot<=7 && slotCard[slot] != NULL )
+					(void) slotCard[slot]->getMem16b(address & 0x0f);
+				break;
+			}
 			// Possibly a read / write switch
 			/// Include provisions for double read etc in CPU and do away with this line ///
 			_readIo(address);
@@ -819,8 +972,10 @@ Uint8 Memory128k::_readExpMem( Uint16 address )
 	//            Reset by access to $CFFF or 'RESET	
 	//            Grants access to internal ROM at $C800-$CFFF
 
-	if( address==0xcfff )
+	if( address==0xcfff ) {
 		resetSwitch(_INTC8ROM);
+		return _readFloatingBus();
+	}
 		
 	if( getSwitch(_INTC8ROM) || getSwitch(_INTCXROM) )
 		return rom16k[address-0xc000];
@@ -918,9 +1073,8 @@ void Memory128k::_writeNull( Uint16 address, Uint8 byte )
 
 Uint8 Memory128k::_randRead()
 {
-	/// STUB ///
-	/// See Sather 5-29, 5-40 for possible values
-	return 0x00;
+	// Use floating-bus shaped readback for undefined soft-switch reads.
+	return _readFloatingBus();
 }
 
 Uint8 Memory128k::_randRead7bit()
