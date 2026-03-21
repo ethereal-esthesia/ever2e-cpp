@@ -112,6 +112,10 @@ private:
 
 	void _setPalType( PalType type );
 
+	Uint16 _getFloatingBusAddress() const;
+
+	void _updateFloatingBusLatch();
+
 public:
 
 	Monitor560x192( class PixelSurface* surface, class Memory128k* memory );
@@ -134,6 +138,8 @@ public:
 	Uint8 getOverflowCount();
 
 	Uint8 getLastRead() const;
+
+	Uint16 getFloatingBusAddress() const;
 
 	bool getScanlineSkip();
 	

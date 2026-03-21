@@ -1033,6 +1033,101 @@ Uint8 Monitor560x192::getLastRead() const
 	return lastRead;
 }
 
+Uint16 Monitor560x192::getFloatingBusAddress() const
+{
+	return _getFloatingBusAddress();
+}
+
+Uint16 Monitor560x192::_getFloatingBusAddress() const
+{
+	// Clean-room implementation from the Apple II video state machine
+	// description (Bob Bishop / scanner phase counters). The floating bus
+	// follows the current scanner fetch source address.
+	static const int kHSize = 65;
+	static const int kVSize = 262;
+	static const int kHCounterSeed = 0x18;
+	static const int kVCounterSeed = 0x100;
+	static const int kHCounterPreset = 41;
+	static const int kVCounterPreset = 256;
+	static const int kTextPrefetchStart = 40;
+
+	const int hScan = (int) hRefreshCount;
+	const int vScan = (int) vRefreshCount;
+
+	// Convert beam scan position to scanner counter phase.
+	const int hClock = (hScan + 63) % kHSize;
+	int hCounter = kHCounterSeed + hClock;
+	if( hClock>=kHCounterPreset )
+		hCounter -= 1;
+
+	int vLine = vScan + 192;
+	if( vLine>=kVCounterPreset )
+		vLine -= kVSize;
+	const int vCounter = kVCounterSeed + vLine;
+
+	const int h0 = (hCounter >> 0) & 1;
+	const int h1 = (hCounter >> 1) & 1;
+	const int h2 = (hCounter >> 2) & 1;
+	const int h3 = (hCounter >> 3) & 1;
+	const int h4 = (hCounter >> 4) & 1;
+	const int h5 = (hCounter >> 5) & 1;
+
+	const int vA = (vCounter >> 0) & 1;
+	const int vB = (vCounter >> 1) & 1;
+	const int vC = (vCounter >> 2) & 1;
+	const int v0 = (vCounter >> 3) & 1;
+	const int v1 = (vCounter >> 4) & 1;
+	const int v2 = (vCounter >> 5) & 1;
+	const int v3 = (vCounter >> 6) & 1;
+	const int v4 = (vCounter >> 7) & 1;
+
+	const bool softText = memory->getSwitch(Memory128k::_TEXT);
+	const bool softMixed = memory->getSwitch(Memory128k::_MIXED);
+	const bool softHires = memory->getSwitch(Memory128k::_HIRES);
+	const bool softPage2 = memory->getSwitch(Memory128k::_PAGE2);
+	const bool soft80Store = memory->getSwitch(Memory128k::_80STORE);
+
+	int fetchHires = (softHires && !softText) ? 1 : 0;
+	if( fetchHires && softMixed && (v4 & v2) )
+		fetchHires = 0;
+
+	const int pageBit = softPage2 && !soft80Store ? 1 : 0;
+	const int base = 0x68;
+	const int hTerm = (h5 << 5) | (h4 << 4) | (h3 << 3);
+	const int vTerm = (v4 << 6) | (v3 << 5) | (v4 << 4) | (v3 << 3);
+	const int lowAdder = (base + hTerm + vTerm) & 0x78;
+
+	Uint16 address = 0;
+	address |= (Uint16) (h0 << 0);
+	address |= (Uint16) (h1 << 1);
+	address |= (Uint16) (h2 << 2);
+	address |= (Uint16) lowAdder;
+	address |= (Uint16) (v0 << 7);
+	address |= (Uint16) (v1 << 8);
+	address |= (Uint16) (v2 << 9);
+
+	if( fetchHires ) {
+		address |= (Uint16) (vA << 10);
+		address |= (Uint16) (vB << 11);
+		address |= (Uint16) (vC << 12);
+		address |= (Uint16) ((1 ^ pageBit) << 13);
+		address |= (Uint16) (pageBit << 14);
+	}
+	else {
+		address |= (Uint16) ((1 ^ pageBit) << 10);
+		address |= (Uint16) (pageBit << 11);
+		if( hClock>=kTextPrefetchStart )
+			address |= (Uint16) (1 << 12);
+	}
+
+	return address & 0xffff;
+}
+
+void Monitor560x192::_updateFloatingBusLatch()
+{
+	lastRead = memory->getMemPassive(0, _getFloatingBusAddress());
+}
+
 /**
  * Interesting
  */
@@ -1183,6 +1278,9 @@ void Monitor560x192::cycle()
 	if( idleState )
 		return;
 
+	// Latch floating-bus value every cycle, including HBL/VBL.
+	_updateFloatingBusLatch();
+
 	// Ensure no stale edge pixels survive into the next frame when the window surface
 	// backend changes behavior (e.g. SDL3). This is render-only; scan timing is unchanged.
 	if( hRefreshCount==0 && vRefreshCount==0 ) {
@@ -1206,83 +1304,93 @@ void Monitor560x192::cycle()
 
 		switch( currentDisplayType ) {
 
-			case TEXT40:
-				// Shift bit 7 is ignored here, and in the Apple IIe (even with custom character ROM's put in place)
-				readOffset = ( flashOn && textType==NORMAL_TEXT ) ? (FLASH_TEXT<<11) : (textType<<11);
-				readOffset += vRefreshCount&0x07;
-				lastRead = memory->getMemPassive(0, loresReadAddress);
-				word14bit = CHAR_MAP[ readOffset + (lastRead<<3) ];
-				word14bit = HGR_TO_DHGR[word14bit&0x7f];
-				hiresCarryBit = false;
-				break;
+				case TEXT40:
+					// Shift bit 7 is ignored here, and in the Apple IIe (even with custom character ROM's put in place)
+					readOffset = ( flashOn && textType==NORMAL_TEXT ) ? (FLASH_TEXT<<11) : (textType<<11);
+					readOffset += vRefreshCount&0x07;
+					{
+						Uint8 readByte = memory->getMemPassive(0, loresReadAddress);
+						word14bit = CHAR_MAP[ readOffset + (readByte<<3) ];
+					}
+					word14bit = HGR_TO_DHGR[word14bit&0x7f];
+					hiresCarryBit = false;
+					break;
 
 			case TEXT80:
-				if( palType == COLOR_PAL )
-					currentPal = COLOR80_PAL;
-				readOffset = ( flashOn && textType==NORMAL_TEXT ) ? (FLASH_TEXT<<11) : (textType<<11);
-				readOffset += vRefreshCount&0x07;
-				lastRead = memory->getMemPassive(1, loresReadAddress);
-				word14bit = CHAR_MAP[ readOffset + (lastRead<<3) ];
-				lastRead = memory->getMemPassive(0, loresReadAddress);
-				word14bit |= CHAR_MAP[ readOffset + (lastRead<<3) ] << 7;
-				hiresCarryBit = false;
-				break;
+					if( palType == COLOR_PAL )
+						currentPal = COLOR80_PAL;
+					readOffset = ( flashOn && textType==NORMAL_TEXT ) ? (FLASH_TEXT<<11) : (textType<<11);
+					readOffset += vRefreshCount&0x07;
+					{
+						Uint8 auxReadByte = memory->getMemPassive(1, loresReadAddress);
+						Uint8 mainReadByte = memory->getMemPassive(0, loresReadAddress);
+						word14bit = CHAR_MAP[ readOffset + (auxReadByte<<3) ];
+						word14bit |= CHAR_MAP[ readOffset + (mainReadByte<<3) ] << 7;
+					}
+					hiresCarryBit = false;
+					break;
 
 			case LORES40:
 			case LORES40M:
-				readOffset = hRefreshCount&0x01;
-				lastRead = memory->getMemPassive(0, loresReadAddress);
-				if( vRefreshCount&0x04 )
-					word14bit = GR_TO_DHGR[readOffset+((lastRead>>4)<<1)];
-				else
-					word14bit = GR_TO_DHGR[readOffset+((lastRead&0x0f)<<1)];
-				hiresCarryBit = false;
-				if( currentDisplayType==LORES40M )
-					word14bit = HGR_TO_DHGR[word14bit&0x7f];
+					readOffset = hRefreshCount&0x01;
+					{
+					Uint8 readByte = memory->getMemPassive(0, loresReadAddress);
+					if( vRefreshCount&0x04 )
+						word14bit = GR_TO_DHGR[readOffset+((readByte>>4)<<1)];
+					else
+						word14bit = GR_TO_DHGR[readOffset+((readByte&0x0f)<<1)];
+					}
+					hiresCarryBit = false;
+					if( currentDisplayType==LORES40M )
+						word14bit = HGR_TO_DHGR[word14bit&0x7f];
 				break;
 
 			case LORES80:
-				if( palType == COLOR_PAL )
-					currentPal = COLOR80_PAL;
-				readOffset = hRefreshCount&0x01;
-				if( vRefreshCount&0x04 ) {
-					lastRead = memory->getMemPassive(1, loresReadAddress);
-					word14bit = 0x7f & GR_TO_DHGR[readOffset+((lastRead>>4)<<1)];
-					lastRead = memory->getMemPassive(0, loresReadAddress);
-					word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((lastRead>>4)<<1)] ) << 7;
-				}
-				else {
-					lastRead = memory->getMemPassive(1, loresReadAddress);
-					word14bit = 0x7f & GR_TO_DHGR[readOffset+((lastRead&0x0f)<<1)];
-					lastRead = memory->getMemPassive(0, loresReadAddress);
-					word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((lastRead&0x0f)<<1)] ) << 7;
-				}
-				hiresCarryBit = false;
-				break;
+					if( palType == COLOR_PAL )
+						currentPal = COLOR80_PAL;
+					readOffset = hRefreshCount&0x01;
+					if( vRefreshCount&0x04 ) {
+						Uint8 auxReadByte = memory->getMemPassive(1, loresReadAddress);
+						Uint8 mainReadByte = memory->getMemPassive(0, loresReadAddress);
+						word14bit = 0x7f & GR_TO_DHGR[readOffset+((auxReadByte>>4)<<1)];
+						word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((mainReadByte>>4)<<1)] ) << 7;
+					}
+					else {
+						Uint8 auxReadByte = memory->getMemPassive(1, loresReadAddress);
+						Uint8 mainReadByte = memory->getMemPassive(0, loresReadAddress);
+						word14bit = 0x7f & GR_TO_DHGR[readOffset+((auxReadByte&0x0f)<<1)];
+						word14bit |= ( 0x7f & GR_TO_DHGR[readOffset+((mainReadByte&0x0f)<<1)] ) << 7;
+					}
+					hiresCarryBit = false;
+					break;
 
-			case HIRES40:
-			case HIRES40M:
-				lastRead = memory->getMemPassive(0, hiresReadAddress);
-				word14bit = lastRead;
-				shift = word14bit&0x80;
-				word14bit = HGR_TO_DHGR[word14bit&0x7f];
-				if( currentDisplayType==HIRES40 && shift ) {
-					word14bit = ( word14bit << 1 ) & 0x3fff;
-					if( hiresCarryBit )
-						word14bit |= 1;
-				}
-				hiresCarryBit = word14bit&0x2000;
-				break;
+				case HIRES40:
+				case HIRES40M:
+					{
+					Uint8 readByte = memory->getMemPassive(0, hiresReadAddress);
+					word14bit = readByte;
+					shift = word14bit&0x80;
+					word14bit = HGR_TO_DHGR[word14bit&0x7f];
+					if( currentDisplayType==HIRES40 && shift ) {
+						word14bit = ( word14bit << 1 ) & 0x3fff;
+						if( hiresCarryBit )
+							word14bit |= 1;
+					}
+					}
+					hiresCarryBit = word14bit&0x2000;
+					break;
 
-			case HIRES80:
-				if( palType == COLOR_PAL )
-					currentPal = COLOR80_PAL;
-				lastRead = memory->getMemPassive(1, hiresReadAddress);
-				word14bit = lastRead & 0x7f;
-				lastRead = memory->getMemPassive(0, hiresReadAddress);
-				word14bit |= ( lastRead & 0x7f ) << 7;
-				hiresCarryBit = false;
-				break;
+				case HIRES80:
+					if( palType == COLOR_PAL )
+						currentPal = COLOR80_PAL;
+					{
+						Uint8 auxReadByte = memory->getMemPassive(1, hiresReadAddress);
+						Uint8 mainReadByte = memory->getMemPassive(0, hiresReadAddress);
+						word14bit = auxReadByte & 0x7f;
+						word14bit |= ( mainReadByte & 0x7f ) << 7;
+					}
+					hiresCarryBit = false;
+					break;
 
 		}
 
