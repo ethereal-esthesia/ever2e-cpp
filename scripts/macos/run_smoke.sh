@@ -61,7 +61,9 @@ if [[ -n "$REQUIRE_HALT_PC" ]]; then
   ARGS+=(--require-halt-pc "$REQUIRE_HALT_PC")
 fi
 
-exec env QUIET_BUILD="$QUIET_BUILD" "$RUN_SH" \
+env QUIET_BUILD="$QUIET_BUILD" "$RUN_SH" \
   "$EMU_FILE" \
   "${ARGS[@]}" \
   "$@"
+
+echo "SMOKE PASS: steps=$STEPS final_pc=${REQUIRE_HALT_PC:-unchecked}"
