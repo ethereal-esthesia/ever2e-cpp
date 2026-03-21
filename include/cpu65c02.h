@@ -80,6 +80,12 @@ public:
 		uint8_t cycleTime;
 	};
 
+	enum CpuProfile
+	{
+		PROFILE_WDC = 0,
+		PROFILE_CMD = 1
+	};
+
 	enum OpcodeMnemonic
 	{
 		_ADC, _AND, _ASL, _BCC, _BCS, _BEQ,
@@ -167,6 +173,8 @@ private:
 	int idleCycle;
 
 	const OpcodeTable* opcode;
+	const OpcodeTable* opcodeTable;
+	CpuProfile cpuProfile;
 	static const OpcodeTable OPCODE_65C02[0x105];
 
 	OpcodeMnemonic interruptPending;
@@ -204,13 +212,15 @@ private:
 	int _pageTranslate( int page );
 	
 	Uint8 _transliterate( char c );
+
+	static const OpcodeTable* _getOpcodeTableForProfile( CpuProfile profile );
 	
 public:
 
 	// Used to define clock rate and to sync other devices
 	static const Sint32 CPU_TIMING_NANOSECONDS = 978;  // Sather 3-5
 
-	Cpu65c02( class Memory128k* memory );
+	Cpu65c02( class Memory128k* memory, CpuProfile profile = PROFILE_CMD );
 
 	~Cpu65c02();
 
@@ -219,8 +229,10 @@ public:
 		// This will not effect other hardware cycling or speaker pitch
 
 	int getMultiplier();
+	CpuProfile getCpuProfile() const;
 
 	static OpcodeDescriptor getOpcodeDescriptor( uint16_t machineCode );
+	static OpcodeDescriptor getOpcodeDescriptorForProfile( CpuProfile profile, uint16_t machineCode );
 
 	void store( SaveState& state );
 

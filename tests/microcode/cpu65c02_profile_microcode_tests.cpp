@@ -113,3 +113,21 @@ E2TEST_CASE(cmdProfileNopOpcodesMatchMicrocodeCycleCount)
 {
     assertProfileCycleCountMatchesMicrocodeSteps(Profile::CMD, true, false);
 }
+
+E2TEST_CASE(cpuDescriptorProfilesExposeCmdOverrides)
+{
+    const Cpu65c02::OpcodeDescriptor wdc07 =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_WDC, 0x07);
+    const Cpu65c02::OpcodeDescriptor cmd07 =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0x07);
+    E2TEST_ASSERT_EQ(1, static_cast<int>(wdc07.instrSize));
+    E2TEST_ASSERT_EQ(2, static_cast<int>(cmd07.instrSize));
+
+    const Cpu65c02::OpcodeDescriptor wdc0f =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_WDC, 0x0F);
+    const Cpu65c02::OpcodeDescriptor cmd0f =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0x0F);
+    E2TEST_ASSERT_EQ(1, static_cast<int>(wdc0f.instrSize));
+    E2TEST_ASSERT_EQ(3, static_cast<int>(cmd0f.instrSize));
+
+}

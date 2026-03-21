@@ -50,6 +50,8 @@ bool TraceStarted = false;
 ofstream TraceFileOut;
 bool HeadlessMode = false;
 bool DeterministicOpenBus = false;
+Cpu65c02::CpuProfile SelectedCpuProfile = Cpu65c02::PROFILE_CMD;
+bool CpuProfileSetByCli = false;
 vector<Uint16> HaltExecutionPcs;
 vector<Uint16> RequiredHaltPcs;
 bool HaltedAtExecutionPc = false;
@@ -80,6 +82,19 @@ bool appendWordListArg( const string& rawList, vector<Uint16>& out )
 		out.push_back(value);
 	}
 	return !out.empty();
+}
+
+bool parseCpuProfileArg( const string& raw, Cpu65c02::CpuProfile& out )
+{
+	if( raw=="cmd" || raw=="CMD" ) {
+		out = Cpu65c02::PROFILE_CMD;
+		return true;
+	}
+	if( raw=="wdc" || raw=="WDC" ) {
+		out = Cpu65c02::PROFILE_WDC;
+		return true;
+	}
+	return false;
 }
 
 char transliterateText( Uint8 ascii )
@@ -226,7 +241,7 @@ int main( int args, char** argv )
 	for( int i = 1; i<args; i++ ) {
 		string arg = argv[i];
 		if( arg == "--help" ) {
-			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus]\n";
+			cout << "Usage: ever2e [--paste-file <path>] [--guest-core-dump <path>] [--print-text-at-exit] [--print-cpu-state-at-exit] [--steps <count>] [--trace-steps-from <count>] [--trace-steps-count <count>] [--trace-file <path>] [--trace-start-pc <addr>] [--halt-execution <addr[,addr...]>] [--require-halt-pc <addr[,addr...]>] [--headless] [--deterministic-open-bus] [--cpu-profile <cmd|wdc>]\n";
 			return 0;
 		}
 		if( arg == "--paste-file" ) {
@@ -267,6 +282,26 @@ int main( int args, char** argv )
 		}
 		if( arg == "--deterministic-open-bus" ) {
 			DeterministicOpenBus = true;
+			continue;
+		}
+		if( arg == "--cpu-profile" ) {
+			if( i+1>=args ) {
+				cerr << "Missing value for --cpu-profile\n";
+				return 1;
+			}
+			if( !parseCpuProfileArg(argv[++i], SelectedCpuProfile) ) {
+				cerr << "Invalid value for --cpu-profile (expected cmd|wdc)\n";
+				return 1;
+			}
+			CpuProfileSetByCli = true;
+			continue;
+		}
+		if( arg.find("--cpu-profile=")==0 ) {
+			if( !parseCpuProfileArg(arg.substr(sizeof("--cpu-profile=")-1), SelectedCpuProfile) ) {
+				cerr << "Invalid value for --cpu-profile (expected cmd|wdc)\n";
+				return 1;
+			}
+			CpuProfileSetByCli = true;
 			continue;
 		}
 		if( arg == "--steps" ) {
@@ -406,7 +441,17 @@ int main( int args, char** argv )
 		setenv("SDL_AUDIODRIVER", "dummy", 1);
 	}
 
-	EventLoop emulator;
+	const char* envCpuProfile = getenv("EVER2E_CPU_PROFILE");
+	if( !CpuProfileSetByCli && envCpuProfile!=NULL && envCpuProfile[0]!='\0' ) {
+		Cpu65c02::CpuProfile envProfile;
+		if( !parseCpuProfileArg(envCpuProfile, envProfile) ) {
+			cerr << "Invalid EVER2E_CPU_PROFILE value (expected cmd|wdc)\n";
+			return 1;
+		}
+		SelectedCpuProfile = envProfile;
+	}
+
+	EventLoop emulator(SelectedCpuProfile);
 	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);
 	if( !TraceFilePath.empty() ) {
 		TraceFileOut.open(TraceFilePath.c_str(), ios::out | ios::trunc);

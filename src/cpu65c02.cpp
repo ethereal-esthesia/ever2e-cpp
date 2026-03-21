@@ -25,6 +25,7 @@
  
 
 #include "cpu65c02.h"
+#include <array>
 
 
 using namespace std;
@@ -1134,26 +1135,26 @@ _pushStack(0x00);
 
 		case _NOI:
 			// No interrupt pending - get next memory instruction
-			opcode = &OPCODE_65C02[memory->getMem(newPc)];
+			opcode = &opcodeTable[memory->getMem(newPc)];
 			break;
 
 		case _RES:
-			opcode = &OPCODE_65C02[TABLE_RES];
+			opcode = &opcodeTable[TABLE_RES];
 			interruptPending = _NOI;
 			break;
 
 		case _IRQ:			
-			opcode = &OPCODE_65C02[TABLE_IRQ];
+			opcode = &opcodeTable[TABLE_IRQ];
 			interruptPending = _NOI;
 			break;
 
 		case _NMI:
-			opcode = &OPCODE_65C02[TABLE_NMI];
+			opcode = &opcodeTable[TABLE_NMI];
 			interruptPending = _NOI;
 			break;
 
 		case _HLT:
-			opcode = &OPCODE_65C02[TABLE_HLT];
+			opcode = &opcodeTable[TABLE_HLT];
 			// Pending interrupt can only be changed by host (e.g. creating reset interrupt or restoring NOI state)
 			break;
 
@@ -1462,10 +1463,53 @@ Uint8 Cpu65c02::_transliterate( char c )
 	
 }
 
-Cpu65c02::Cpu65c02( Memory128k* memory )
+const Cpu65c02::OpcodeTable* Cpu65c02::_getOpcodeTableForProfile( CpuProfile profile )
+{
+	if( profile==PROFILE_WDC )
+		return &OPCODE_65C02[0];
+
+	static const std::array<OpcodeTable, 0x105> opcodeCmd = []() {
+		std::array<OpcodeTable, 0x105> cmd{};
+		for( size_t i = 0; i<cmd.size(); i++ )
+			cmd[i] = OPCODE_65C02[i];
+
+		const int cmdNopWidthOverrides[][2] = {
+			{ 0x07, 2 }, { 0x0F, 3 }, { 0x17, 2 }, { 0x1F, 3 }, { 0x27, 2 }, { 0x2F, 3 }, { 0x37, 2 }, { 0x3F, 3 },
+			{ 0x47, 2 }, { 0x4F, 3 }, { 0x57, 2 }, { 0x5F, 3 }, { 0x67, 2 }, { 0x6F, 3 }, { 0x77, 2 }, { 0x7F, 3 },
+			{ 0x87, 2 }, { 0x8F, 3 }, { 0x97, 2 }, { 0x9F, 3 }, { 0xA7, 2 }, { 0xAF, 3 }, { 0xB7, 2 }, { 0xBF, 3 },
+			{ 0xC7, 2 }, { 0xCF, 3 }, { 0xD7, 2 }, { 0xDF, 3 }, { 0xE7, 2 }, { 0xEF, 3 }, { 0xF7, 2 }, { 0xFF, 3 }
+		};
+
+		for( size_t i = 0; i<sizeof(cmdNopWidthOverrides)/sizeof(cmdNopWidthOverrides[0]); i++ ) {
+			const int opcode = cmdNopWidthOverrides[i][0] & 0xFF;
+			const int width = cmdNopWidthOverrides[i][1];
+			cmd[opcode].mnemonic = _NOP;
+			cmd[opcode].addressMode = _IMP;
+			cmd[opcode].instrSize = (Uint8) width;
+		}
+
+		cmd[0x03].mnemonic = _NOP;
+		cmd[0x03].addressMode = _IMP;
+		cmd[0x03].instrSize = 1;
+		cmd[0x03].cycleTime = 1;
+
+		cmd[0x5C].mnemonic = _NOP;
+		cmd[0x5C].addressMode = _IMP;
+		cmd[0x5C].instrSize = 3;
+		cmd[0x5C].cycleTime = 8;
+
+		return cmd;
+	}();
+
+	return &opcodeCmd[0];
+}
+
+Cpu65c02::Cpu65c02( Memory128k* memory, CpuProfile profile )
 {
 
 	this->memory = memory;
+	this->cpuProfile = profile;
+	this->opcodeTable = _getOpcodeTableForProfile(profile);
 	
 	// Startup register values
 	/// Verify values for real CPU ///
@@ -1483,7 +1527,7 @@ Cpu65c02::Cpu65c02( Memory128k* memory )
 	idleCycle = 0;
 
 	// First instruction is a reset interrupt
-	opcode = &OPCODE_65C02[TABLE_RES];
+	opcode = &opcodeTable[TABLE_RES];
 	cycleCount = opcode->cycleTime;
 	
 	// Turn off interrupt line to CPU
@@ -1514,12 +1558,23 @@ int Cpu65c02::getMultiplier()
 	return multiplier;
 }
 
+Cpu65c02::CpuProfile Cpu65c02::getCpuProfile() const
+{
+	return cpuProfile;
+}
+
 Cpu65c02::OpcodeDescriptor Cpu65c02::getOpcodeDescriptor( uint16_t machineCode )
+{
+	return getOpcodeDescriptorForProfile(PROFILE_WDC, machineCode);
+}
+
+Cpu65c02::OpcodeDescriptor Cpu65c02::getOpcodeDescriptorForProfile( CpuProfile profile, uint16_t machineCode )
 {
 	OpcodeDescriptor out = { 0, _NOP, _IMP, 1, 1 };
 	if( machineCode>=0x100 )
 		return out;
-	const OpcodeTable& entry = OPCODE_65C02[machineCode];
+	const OpcodeTable* table = _getOpcodeTableForProfile(profile);
+	const OpcodeTable& entry = table[machineCode];
 	out.machineCode = (uint8_t) machineCode;
 	out.mnemonic = (uint8_t) entry.mnemonic;
 	out.addressMode = (uint8_t) entry.addressMode;
@@ -1530,7 +1585,7 @@ Cpu65c02::OpcodeDescriptor Cpu65c02::getOpcodeDescriptor( uint16_t machineCode )
 
 void Cpu65c02::store( SaveState& state )
 {
-	Uint16 opcodeIndex = (Uint16) (opcode - &OPCODE_65C02[0]);
+	Uint16 opcodeIndex = (Uint16) (opcode - opcodeTable);
 	state.write8(_A);
 	state.write8(_Y);
 	state.write8(_X);
@@ -1565,7 +1620,7 @@ int Cpu65c02::restore( SaveState& state )
 
 	if( opcodeIndex >= sizeof(OPCODE_65C02)/sizeof(OPCODE_65C02[0]) )
 		return 1;
-	opcode = &OPCODE_65C02[opcodeIndex];
+	opcode = &opcodeTable[opcodeIndex];
 	return 0;
 }
 
@@ -1610,7 +1665,7 @@ string Cpu65c02::getOpcodeString()
 	stringstream out;
 
 	Uint16 address = _PC;
-	Uint16 machineCode = (Uint16) (((intptr_t)opcode - (intptr_t)(&OPCODE_65C02)) / (intptr_t) sizeof(OpcodeTable));
+	Uint16 machineCode = (Uint16) (opcode - opcodeTable);
 	Uint8 operandLow = 0;
 	Uint8 operandHigh = 0;
 	
