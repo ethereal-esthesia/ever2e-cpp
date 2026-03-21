@@ -40,6 +40,8 @@ target_include_directories(ever2e PRIVATE "${CMAKE_SOURCE_DIR}/third_party/CLI/i
 target_link_libraries(ever2e PRIVATE ever2e_core)
 
 add_executable(microcode_tests ${EVER2E_TEST_SRC})
+add_executable(dsk_to_nib "${CMAKE_SOURCE_DIR}/tools/dsk_to_nib.cpp")
+
 target_include_directories(microcode_tests PRIVATE "${CMAKE_SOURCE_DIR}/tests/microcode")
 target_link_libraries(microcode_tests PRIVATE ever2e_core)
 
