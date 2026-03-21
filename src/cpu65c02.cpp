@@ -1659,6 +1659,45 @@ Uint16 Cpu65c02::getProgramCounter() const
 	return _PC;
 }
 
+Uint8 Cpu65c02::getRegisterA() const
+{
+	return _A;
+}
+
+Uint8 Cpu65c02::getRegisterX() const
+{
+	return _X;
+}
+
+Uint8 Cpu65c02::getRegisterY() const
+{
+	return _Y;
+}
+
+Uint8 Cpu65c02::getRegisterP() const
+{
+	return _P;
+}
+
+Uint8 Cpu65c02::getRegisterS() const
+{
+	return _S;
+}
+
+const char* Cpu65c02::getOpcodeMnemonicName( uint8_t mnemonic )
+{
+	if( mnemonic >= (sizeof(OPCODE_NAME) / sizeof(OPCODE_NAME[0])) )
+		return "UNK";
+	return OPCODE_NAME[mnemonic];
+}
+
+const char* Cpu65c02::getAddressModeName( uint8_t addressMode )
+{
+	if( addressMode >= (sizeof(ADDRESS_MODE_NAME) / sizeof(ADDRESS_MODE_NAME[0])) )
+		return "UNK";
+	return ADDRESS_MODE_NAME[addressMode];
+}
+
 string Cpu65c02::getOpcodeString()
 {
 
