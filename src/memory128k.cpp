@@ -1125,11 +1125,6 @@ void Memory128k::dumpMem()
 	ios_base::fmtflags coutFlags = cout.flags();	
 	cout << hex << uppercase << setfill ('0');
 
-	// Read main memory
-	putMem(0xc000, 0x00);  // 80STORE off
-	putMem(0xc002, 0x00);  // RAMRD off
-	putMem(0xc008, 0x00);  // ALTZP off
-
 	for( int page = 0; page<TOTAL_RAM_PAGES; page++ ) {
 
 		cout << "RAM PAGE " << page << endl;
@@ -1253,6 +1248,130 @@ void Memory128k::putMemRange( int page, Uint16 startAddress, const Uint8* bytes,
 Uint8 Memory128k::getMem( Uint16 address )
 {
 	return (this->*getMemBlockFunc[address>>8])(address);
+}
+
+Uint8 Memory128k::peekMemNoSideEffects( Uint16 address )
+{
+	address &= 0xffff;
+
+	if( address<0x0200 ) {
+		if( getSwitch(_ALTZP) )
+			return ramPage64k[0x10000|address];
+		return ramPage64k[address];
+	}
+
+	if( address<0xc000 ) {
+		bool auxRead;
+		if( getSwitch(_80STORE) ) {
+			if( ( address>=0x400 && address<0x800 ) || ( getSwitch(_HIRES) && address>=0x2000 && address<0x4000 ) )
+				auxRead = getSwitch(_PAGE2);
+			else
+				auxRead = getSwitch(_RAMRD);
+		}
+		else
+			auxRead = getSwitch(_RAMRD);
+		if( auxRead )
+			return ramPage64k[0x10000|address];
+		return ramPage64k[address];
+	}
+
+	if( address<0xc100 ) {
+		Uint8 key = keyboard==NULL ? 0x00 : keyboard->getKeyboard();
+		switch( address ) {
+			case 0xc000:
+				return key;
+			case 0xc010:
+				return keyboard==NULL ? 0x00 : keyboard->getStrobe();
+			case 0xc011:
+				return (key & 0x7f) | ((!getSwitch(_BANK1))<<7);
+			case 0xc012:
+				return (key & 0x7f) | (getSwitch(_HRAMRD)<<7);
+			case 0xc013:
+				return (key & 0x7f) | (getSwitch(_RAMRD)<<7);
+			case 0xc014:
+				return (key & 0x7f) | (getSwitch(_RAMWRT)<<7);
+			case 0xc015:
+				return (key & 0x7f) | (getSwitch(_INTCXROM)<<7);
+			case 0xc016:
+				return (key & 0x7f) | (getSwitch(_ALTZP)<<7);
+			case 0xc017:
+				return (key & 0x7f) | (getSwitch(_SLOTC3ROM)<<7);
+			case 0xc018:
+				return (key & 0x7f) | (getSwitch(_80STORE)<<7);
+			case 0xc019:
+				return (key & 0x7f) | ((!monitor->getVbl())<<7);
+			case 0xc01a:
+				return (key & 0x7f) | (getSwitch(_TEXT)<<7);
+			case 0xc01b:
+				return (key & 0x7f) | (getSwitch(_MIXED)<<7);
+			case 0xc01c:
+				return (key & 0x7f) | (getSwitch(_PAGE2)<<7);
+			case 0xc01d:
+				return (key & 0x7f) | (getSwitch(_HIRES)<<7);
+			case 0xc01e:
+				return (key & 0x7f) | (getSwitch(_ALTCHRSET)<<7);
+			case 0xc01f:
+				return (key & 0x7f) | (getSwitch(_80COL)<<7);
+			case 0xc061:
+			case 0xc069:
+				return keyboard!=NULL && keyboard->getOpenApple() ? 0x80 : 0x00;
+			case 0xc062:
+			case 0xc06a:
+				return keyboard!=NULL && keyboard->getClosedApple() ? 0x80 : 0x00;
+			case 0xc063:
+			case 0xc06b:
+				return keyboard!=NULL && keyboard->getShiftKey() ? 0x80 : 0x00;
+			case 0xc060:
+			case 0xc068:
+			case 0xc064:
+			case 0xc065:
+			case 0xc066:
+			case 0xc067:
+			case 0xc06c:
+			case 0xc06d:
+			case 0xc06e:
+			case 0xc06f:
+				return 0x80;
+			default:
+				return _readFloatingBus();
+		}
+	}
+
+	if( address<0xc800 ) {
+		int slot = (address-0xc000)>>8;
+		if( slot==3 ) {
+			if( getSwitch(_INTCXROM) || !getSwitch(_SLOTC3ROM) )
+				return rom16k[address-0xc000];
+			if( slotCard[3]!=NULL )
+				return slotCard[3]->getMem256b(address&0x00ff);
+			return 0x00;
+		}
+		if( getSwitch(_INTCXROM) )
+			return rom16k[address-0xc000];
+		if( slotCard[slot]!=NULL )
+			return slotCard[slot]->getMem256b(address&0x00ff);
+		return 0x00;
+	}
+
+	if( address<0xd000 ) {
+		if( address==0xcfff )
+			return 0x00;
+		if( getSwitch(_INTC8ROM) || getSwitch(_INTCXROM) )
+			return rom16k[address-0xc000];
+		return 0x00;
+	}
+
+	if( getSwitch(_HRAMRD) ) {
+		if( getSwitch(_ALTZP) ) {
+			if( address<0xe000 && getSwitch(_BANK1) )
+				return ramPage64k[0x10000|(address-0x1000)];
+			return ramPage64k[0x10000|address];
+		}
+		if( address<0xe000 && getSwitch(_BANK1) )
+			return ramPage64k[address-0x1000];
+		return ramPage64k[address];
+	}
+	return rom16k[address-0xc000];
 }
 
 void Memory128k::memAccess()

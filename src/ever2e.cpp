@@ -264,7 +264,7 @@ bool isGuestPromptReadyForPaste( EventLoop* emulator )
 	int page = emulator->memory->getSwitch(Memory128k::_PAGE2) ? 2:1;
 	for( int y = 0; y<24; y++ ) {
 		Uint16 addr = Monitor560x192::getAddressLo40(page, y, 0);
-		Uint8 c = emulator->memory->getMem(addr) & 0x7f;
+		Uint8 c = emulator->memory->peekMemNoSideEffects(addr) & 0x7f;
 		if( c==']' || c=='*' )
 			return true;
 	}
@@ -280,7 +280,7 @@ void printTextScreen( EventLoop* emulator )
 		line.reserve(40);
 		for( int x = 0; x<40; x++ ) {
 			Uint16 addr = Monitor560x192::getAddressLo40(page, y, x);
-			line.push_back(transliterateText(emulator->memory->getMem(addr)));
+			line.push_back(transliterateText(emulator->memory->peekMemNoSideEffects(addr)));
 		}
 		cout << line << "\n";
 	}
@@ -353,11 +353,11 @@ bool hostCycle( EventLoop *emulator )
 			if( !TraceStartPcSet || TraceStarted || pc==TraceStartPc )
 				TraceStarted = true;
 			if( TraceStarted ) {
-				Uint8 opcode = emulator->memory->getMem(pc);
+				Uint8 opcode = emulator->memory->peekMemNoSideEffects(pc);
 				if( TraceVerbose ) {
 					Uint8 opc1 = opcode;
-					Uint8 opc2 = emulator->memory->getMem((Uint16)(pc + 1));
-					Uint8 opc3 = emulator->memory->getMem((Uint16)(pc + 2));
+					Uint8 opc2 = emulator->memory->peekMemNoSideEffects((Uint16)(pc + 1));
+					Uint8 opc3 = emulator->memory->peekMemNoSideEffects((Uint16)(pc + 2));
 					Cpu65c02::OpcodeDescriptor desc =
 							Cpu65c02::getOpcodeDescriptorForProfile(emulator->cpu->getCpuProfile(), opcode);
 					TraceFileOut << CpuStepCount << ','
