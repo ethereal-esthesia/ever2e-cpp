@@ -524,3 +524,90 @@ E2TEST_CASE(runtimeNmiServiceTakesSixCyclesAndVectors)
     E2TEST_ASSERT_EQ(0xFC, static_cast<int>(cpu.getRegisterS()));
     E2TEST_ASSERT_EQ(6, cpu.getLastInstructionCycleCount());
 }
+
+E2TEST_CASE(runtimeMaskedIrqDoesNotPreemptWhenInterruptDisableSet)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x2000;
+    memory->putMem(startPc + 0, 0xEA); // NOP
+    memory->putMem(startPc + 1, 0xEA); // NOP
+
+    primeCpuState(cpu, startPc, 0xEA, 2, 0x00, 0x00, 0x00, 0x24, 0xFF); // I set
+    cpu.interrupt(Cpu65c02::_IRQ);
+
+    const int firstCycles = runInstructionAndGetLastCycleCount(cpu, startPc);
+    E2TEST_ASSERT_EQ(2, firstCycles);
+    E2TEST_ASSERT_EQ(startPc + 1, cpu.getProgramCounter());
+
+    const int secondCycles = runInstructionAndGetLastCycleCount(cpu, startPc + 1);
+    E2TEST_ASSERT_EQ(2, secondCycles);
+    E2TEST_ASSERT_EQ(startPc + 2, cpu.getProgramCounter());
+}
+
+E2TEST_CASE(runtimeNmiPreemptsNextInstructionEvenWhenInterruptDisableSet)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x2000;
+    const Uint16 nmiVector = static_cast<Uint16>(
+            static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_NMI_VECTOR + 0)) |
+            (static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_NMI_VECTOR + 1)) << 8));
+
+    memory->putMem(startPc + 0, 0xEA); // NOP
+    memory->putMem(startPc + 1, 0xEA); // NOP
+
+    primeCpuState(cpu, startPc, 0xEA, 2, 0x00, 0x00, 0x00, 0x24, 0xFF); // I set
+    cpu.interrupt(Cpu65c02::_NMI);
+
+    const int firstCycles = runInstructionAndGetLastCycleCount(cpu, startPc);
+    E2TEST_ASSERT_EQ(2, firstCycles);
+    E2TEST_ASSERT_EQ(startPc + 1, cpu.getProgramCounter());
+
+    const int nmiCycles = runInstructionAndGetLastCycleCount(cpu, startPc + 1);
+    E2TEST_ASSERT_EQ(6, nmiCycles);
+    E2TEST_ASSERT_EQ(nmiVector, cpu.getProgramCounter());
+    E2TEST_ASSERT_EQ(0xFC, static_cast<int>(cpu.getRegisterS()));
+
+    E2TEST_ASSERT_EQ(0x20, static_cast<int>(memory->peekMemNoSideEffects(0x01FF))); // PCH
+    E2TEST_ASSERT_EQ(0x01, static_cast<int>(memory->peekMemNoSideEffects(0x01FE))); // PCL
+    E2TEST_ASSERT_EQ(0x24, static_cast<int>(memory->peekMemNoSideEffects(0x01FD))); // P (B clear)
+}
+
+E2TEST_CASE(runtimeBrkTakesSevenCyclesAndPushesBreakFlagToStack)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x2000;
+    const Uint16 brkVector = static_cast<Uint16>(
+            static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_BRK_VECTOR + 0)) |
+            (static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_BRK_VECTOR + 1)) << 8));
+
+    memory->putMem(startPc + 0, 0x00); // BRK
+    memory->putMem(startPc + 1, 0xEA); // Signature byte consumed by BRK
+
+    primeCpuState(cpu, startPc, 0x00, 7, 0x00, 0x00, 0x00, 0x20, 0xFF);
+    const int brkCycles = runInstructionAndGetLastCycleCount(cpu, startPc);
+
+    E2TEST_ASSERT_EQ(7, brkCycles);
+    E2TEST_ASSERT_EQ(brkVector, cpu.getProgramCounter());
+    E2TEST_ASSERT_EQ(0xFC, static_cast<int>(cpu.getRegisterS()));
+    E2TEST_ASSERT_TRUE((cpu.getRegisterP() & 0x04) != 0); // I set
+    E2TEST_ASSERT_TRUE((cpu.getRegisterP() & 0x08) == 0); // D clear
+
+    E2TEST_ASSERT_EQ(0x20, static_cast<int>(memory->peekMemNoSideEffects(0x01FF))); // PCH (0x2002)
+    E2TEST_ASSERT_EQ(0x02, static_cast<int>(memory->peekMemNoSideEffects(0x01FE))); // PCL
+    E2TEST_ASSERT_TRUE((memory->peekMemNoSideEffects(0x01FD) & 0x10) != 0); // B set on stack push
+}
