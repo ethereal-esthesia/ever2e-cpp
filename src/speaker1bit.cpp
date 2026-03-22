@@ -41,9 +41,7 @@ Speaker1bit::Speaker1bit()
 
 	pos = 0.;
 	vel = 0.;
-	toggleChargeNegative = false;
-	charge = 0.;
-	chargeDur = 0;
+	driveOutward = false;
 	
 	sampleSum = 0.;
 	sampleTotal = 0;
@@ -61,9 +59,7 @@ Speaker1bit::~Speaker1bit()
 
 void Speaker1bit::toggle()
 {
-	chargeDur = CHARGE_DURATION;
-	charge = toggleChargeNegative ? -MAGNET_FORCE : MAGNET_FORCE;
-	toggleChargeNegative = !toggleChargeNegative;
+	driveOutward = !driveOutward;
 }
 
 void Speaker1bit::cycle( Sint32 elapsedNanoseconds )
@@ -85,23 +81,17 @@ void Speaker1bit::cycle( Sint32 elapsedNanoseconds )
 
 	// Move diafragm
 	float accel = -SPRING_FORCE*pos;
-
-	accel += charge;
+	accel += driveOutward ? MAGNET_FORCE : -MAGNET_FORCE;
 	accel -= vel*FRICTION;
 	vel += accel;
 	pos += vel;
 
-	// Check magnet-charge duration expiration
-	if( chargeDur>0 ) {
-		chargeDur--;
-		if( !chargeDur )
-			charge = 0.;
-	}
-
 #ifdef _SPEAKER1BIT_TEST_OUTPUT_
 	if( pos<-100000. || pos>100000. ) {
 		cerr << "Warning: diafragm position far exceeds limits:\n";
-		cerr << "pos " << pos << ", vel " << vel << ", charge " << charge << ", accel " << accel << " chargeDur: " << chargeDur << endl;
+		cerr << "pos " << pos << ", vel " << vel
+			 << ", drive " << (driveOutward ? "OUT" : "IN")
+			 << ", accel " << accel << endl;
 	}
 #endif
 

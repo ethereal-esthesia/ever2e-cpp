@@ -57,22 +57,18 @@ class Speaker1bit
 	
 #ifdef SPEAKER_STATIC
 	static constexpr float FRICTION = .01;                                 // 1% acceleration loss per unit velocity
-	static const Sint32 CHARGE_DURATION = 20/SKIP_CYCLES;              // 20 cycles
-	static constexpr float MAGNET_FORCE = 11.*SKIP_CYCLES*SKIP_CYCLES;     // Magnet acceleration in units distance per increment
+	static constexpr float MAGNET_FORCE = 11.*SKIP_CYCLES*SKIP_CYCLES;     // Continuous latch-driven force in units distance per increment
 	static constexpr float SPRING_FORCE = .00049*SKIP_CYCLES*SKIP_CYCLES;  // Units reverse spring acceleration per unit distance per increment
 #else
 	// Remove typical Apple IIe speaker static
 	static constexpr float FRICTION = .02;        
-	static const Sint32 CHARGE_DURATION = 10/SKIP_CYCLES; 
 	static constexpr float MAGNET_FORCE = 34*SKIP_CYCLES*SKIP_CYCLES;
 	static constexpr float SPRING_FORCE = .0002*SKIP_CYCLES*SKIP_CYCLES;
 #endif
 
 	float pos;                  // Between (-32768) - 32767 for sampling
 	float vel;                  // Diafragm velocity in units per cycle
-	bool toggleChargeNegative;  // Indicates charge of next magnet toggle
-	float charge;               // Indicates current magnet force (+/- MAGNET_FORCE)
-	Sint32 chargeDur;           // Cycles remaining for current charge
+	bool driveOutward;          // Current speaker latch direction (flipped by each toggle)
 
 	float sampleSum;      // Keeps track of sample sum for averaging
 	int sampleTotal;      // Number of consecutive samples in sampleSum
