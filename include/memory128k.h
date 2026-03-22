@@ -110,10 +110,7 @@ class Memory128k
 	void _writeNull( Uint16 address, Uint8 byte );
 
 	Uint8 _randRead();
-		// Generate random default read to simulate Apple IIe undefined address read
-		
-	Uint8 _randRead7bit();
-		// Generate 7 low bits of random default read to simulate Apple IIe undefined address read
+		// Floating-bus shaped default read for Apple IIe undefined address reads.
 
 	Uint8 _readFloatingBus();
 		
