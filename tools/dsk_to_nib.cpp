@@ -87,37 +87,40 @@ std::vector<uint8_t> encodeSector62(const uint8_t* src256) {
     std::vector<uint8_t> out;
     out.reserve(343);
 
-    // Canonical DOS 3.3 6-and-2 pre-nibble buffer: 86 low-bit bytes + 256 high-6 bytes.
-    std::array<uint8_t, 342> prenib{};
+    // Match the Disk II ROM decode order used by ever2e-jvm:
+    // - 86 aux bytes consumed in descending index order (85..0)
+    // - 256 main bytes consumed in ascending order (0..255)
+    // - rolling XOR is applied across that stream, then checksum byte emitted.
+    std::array<uint8_t, 256> main6{};
+    std::array<uint8_t, 86> aux2{};
+    std::array<uint8_t, 86> occ{};
 
     for (int i = 0; i < 256; ++i) {
-        prenib[86 + i] = static_cast<uint8_t>((src256[i] >> 2) & 0x3F);
+        main6[static_cast<size_t>(i)] = static_cast<uint8_t>((src256[i] >> 2) & 0x3F);
     }
 
-    for (int i = 0; i < 86; ++i) {
-        uint8_t v = static_cast<uint8_t>(
-            ((src256[i + 0] & 0x01) << 1) |
-            ((src256[i + 0] & 0x02) >> 1) |
-            ((src256[i + 86] & 0x01) << 3) |
-            ((src256[i + 86] & 0x02) << 1));
-        if (i < 84) {
-            v = static_cast<uint8_t>(
-                v |
-                ((src256[i + 172] & 0x01) << 5) |
-                ((src256[i + 172] & 0x02) << 3));
-        }
-        prenib[i] = static_cast<uint8_t>(v & 0x3F);
+    for (int y = 0; y < 256; ++y) {
+        const int j = 85 - (y % 86);
+        const uint8_t pair = static_cast<uint8_t>(((src256[y] & 0x02) >> 1) | ((src256[y] & 0x01) << 1));
+        const uint8_t shift = static_cast<uint8_t>(occ[static_cast<size_t>(j)] * 2);
+        aux2[static_cast<size_t>(j)] = static_cast<uint8_t>(aux2[static_cast<size_t>(j)] | static_cast<uint8_t>(pair << shift));
+        occ[static_cast<size_t>(j)] = static_cast<uint8_t>(occ[static_cast<size_t>(j)] + 1);
     }
 
-    // Emit in reverse pre-nibble order, with rolling XOR checksum, per DOS RWTS.
     uint8_t prev = 0;
-    for (int i = 341; i >= 0; --i) {
-        const uint8_t v = static_cast<uint8_t>(prenib[static_cast<size_t>(i)] & 0x3F);
+    for (int i = 85; i >= 0; --i) {
+        const uint8_t v = static_cast<uint8_t>(aux2[static_cast<size_t>(i)] & 0x3F);
         out.push_back(kGcr62[static_cast<size_t>((prev ^ v) & 0x3F)]);
         prev = v;
     }
-    out.push_back(kGcr62[static_cast<size_t>(prev & 0x3F)]);
 
+    for (int i = 0; i < 256; ++i) {
+        const uint8_t v = static_cast<uint8_t>(main6[static_cast<size_t>(i)] & 0x3F);
+        out.push_back(kGcr62[static_cast<size_t>((prev ^ v) & 0x3F)]);
+        prev = v;
+    }
+
+    out.push_back(kGcr62[static_cast<size_t>(prev & 0x3F)]);
     return out;
 }
 
