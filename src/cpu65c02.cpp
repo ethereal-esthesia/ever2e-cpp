@@ -35,9 +35,9 @@ using namespace std;
 
 #define P_REG_ALT(arg, flag)  { if(arg) _P |= (flag); else _P &= ~(flag); }
 
-#define BRANCH(condition)  { if(condition) { operandValue = _getMem8(operandPtr); Uint8 oldPage = newPc>>8; newPc += (Sint8) operandValue; cycleCount++; if( oldPage != newPc>>8 ) cycleCount++; } }
+#define BRANCH(condition)  { if(condition) { operandValue = _getMem8(operandPtr); Uint8 oldPage = newPc>>8; newPc += (Sint8) operandValue; cycleCount++; instructionExtraCycles++; if( oldPage != newPc>>8 ) { cycleCount++; instructionExtraCycles++; } } }
 
-#define PTR_ADD(reg)  { Uint16 oldPage = operandPtr>>8; operandPtr += (reg); if( (operandPtr>>8) != (oldPage) ) cycleCount++; }
+#define PTR_ADD(reg)  { Uint16 oldPage = operandPtr>>8; operandPtr += (reg); if( (operandPtr>>8) != (oldPage) ) { cycleCount++; instructionExtraCycles++; } }
 
 Uint8 Cpu65c02::_getMem8( Uint16 address )
 {
@@ -404,6 +404,8 @@ void Cpu65c02::_cycle()
 	// Update results of completed instruction
  
 	Uint16 operandCounter = _PC+1;
+	const int instructionBaseCycles = opcode->cycleTime;
+	int instructionExtraCycles = 0;
 	
 	// Default instruction position
 	Uint16 newPc = _PC + opcode->instrSize;
@@ -1163,6 +1165,7 @@ _pushStack(0x00);
 			exit(1);
 			
 	}
+	lastInstructionCycleCount = instructionBaseCycles + instructionExtraCycles;
 	cycleCount += opcode->cycleTime;
 
 	_PC = newPc;
@@ -1525,6 +1528,7 @@ Cpu65c02::Cpu65c02( Memory128k* memory, CpuProfile profile )
 
 	// This variable is used to suspend CPU access to memory by hardware
 	idleCycle = 0;
+	lastInstructionCycleCount = 0;
 
 	// First instruction is a reset interrupt
 	opcode = &opcodeTable[TABLE_RES];
@@ -1614,6 +1618,7 @@ int Cpu65c02::restore( SaveState& state )
 	Uint16 opcodeIndex = state.read16();
 	interruptPending = (OpcodeMnemonic) state.read16();
 	textType = (TextType) state.read16();
+	lastInstructionCycleCount = 0;
 	soundTimer = 0;
 	soundWaitLength = 0;
 	soundDuration = 0;
@@ -1682,6 +1687,11 @@ Uint8 Cpu65c02::getRegisterP() const
 Uint8 Cpu65c02::getRegisterS() const
 {
 	return _S;
+}
+
+int Cpu65c02::getLastInstructionCycleCount() const
+{
+	return lastInstructionCycleCount;
 }
 
 const char* Cpu65c02::getOpcodeMnemonicName( uint8_t mnemonic )

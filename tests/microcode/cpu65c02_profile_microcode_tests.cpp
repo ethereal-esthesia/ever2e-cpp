@@ -115,6 +115,12 @@ int runUntilProgramCounterChanges(Cpu65c02& cpu, Uint16 startPc)
     return cycles;
 }
 
+int runInstructionAndGetLastCycleCount(Cpu65c02& cpu, Uint16 startPc)
+{
+    (void) runUntilProgramCounterChanges(cpu, startPc);
+    return cpu.getLastInstructionCycleCount();
+}
+
 void assertProfileOpcodeTableHasAllSlots(Profile p)
 {
     (void)p;
@@ -412,4 +418,109 @@ E2TEST_CASE(runtimeStaAbsXHasNoExtraPageCrossCycle)
     E2TEST_ASSERT_EQ(5, cycles);
     E2TEST_ASSERT_EQ(startPc + 3, cpu.getProgramCounter());
     E2TEST_ASSERT_EQ(0xA5, static_cast<int>(memory->getMem(0x2100)));
+}
+
+E2TEST_CASE(runtimeLdaAbsXPageCrossLastCycleCountAddsOne)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x0200;
+    memory->putMem(startPc + 0, 0xBD); // LDA $20FE,X
+    memory->putMem(startPc + 1, 0xFE);
+    memory->putMem(startPc + 2, 0x20);
+    memory->putMem(0x20FF, 0x42);
+    memory->putMem(0x2100, 0x84);
+
+    const Cpu65c02::OpcodeDescriptor ldaAbsX =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0xBD);
+
+    primeCpuState(cpu, startPc, 0xBD, ldaAbsX.cycleTime, 0x00, 0x00, 0x01, 0x24, 0xFF);
+    const int noCrossLastCycles = runInstructionAndGetLastCycleCount(cpu, startPc);
+    E2TEST_ASSERT_EQ(4, noCrossLastCycles);
+
+    primeCpuState(cpu, startPc, 0xBD, ldaAbsX.cycleTime, 0x00, 0x00, 0x02, 0x24, 0xFF);
+    const int crossLastCycles = runInstructionAndGetLastCycleCount(cpu, startPc);
+    E2TEST_ASSERT_EQ(5, crossLastCycles);
+}
+
+E2TEST_CASE(runtimeLdaIndYPageCrossLastCycleCountAddsOne)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x0200;
+    memory->putMem(startPc + 0, 0xB1); // LDA ($10),Y
+    memory->putMem(startPc + 1, 0x10);
+    memory->putMem(0x0010, 0xFE);
+    memory->putMem(0x0011, 0x20);
+    memory->putMem(0x20FF, 0x11);
+    memory->putMem(0x2100, 0x22);
+
+    const Cpu65c02::OpcodeDescriptor ldaIndY =
+            Cpu65c02::getOpcodeDescriptorForProfile(Cpu65c02::PROFILE_CMD, 0xB1);
+
+    primeCpuState(cpu, startPc, 0xB1, ldaIndY.cycleTime, 0x00, 0x01, 0x00, 0x24, 0xFF);
+    const int noCrossLastCycles = runInstructionAndGetLastCycleCount(cpu, startPc);
+    E2TEST_ASSERT_EQ(5, noCrossLastCycles);
+
+    primeCpuState(cpu, startPc, 0xB1, ldaIndY.cycleTime, 0x00, 0x02, 0x00, 0x24, 0xFF);
+    const int crossLastCycles = runInstructionAndGetLastCycleCount(cpu, startPc);
+    E2TEST_ASSERT_EQ(6, crossLastCycles);
+}
+
+E2TEST_CASE(runtimeIrqServiceTakesSixCyclesAndVectors)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x2000;
+    const Uint16 irqVector = static_cast<Uint16>(
+            static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_IRQ_VECTOR + 0)) |
+            (static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_IRQ_VECTOR + 1)) << 8));
+
+    primeCpuState(cpu, startPc, Cpu65c02::TABLE_IRQ, 6, 0x00, 0x00, 0x00, 0x20, 0xFF);
+
+    for( int i = 0; i<5; ++i ) {
+        cpu.cycle();
+        E2TEST_ASSERT_EQ(startPc, cpu.getProgramCounter());
+    }
+    cpu.cycle();
+    E2TEST_ASSERT_EQ(irqVector, cpu.getProgramCounter());
+    E2TEST_ASSERT_EQ(0xFC, static_cast<int>(cpu.getRegisterS()));
+    E2TEST_ASSERT_EQ(6, cpu.getLastInstructionCycleCount());
+}
+
+E2TEST_CASE(runtimeNmiServiceTakesSixCyclesAndVectors)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    std::unique_ptr<Memory128k> memory(new Memory128k());
+    Cpu65c02 cpu(memory.get(), Cpu65c02::PROFILE_CMD);
+
+    const Uint16 startPc = 0x2000;
+    const Uint16 nmiVector = static_cast<Uint16>(
+            static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_NMI_VECTOR + 0)) |
+            (static_cast<Uint16>(memory->peekMemNoSideEffects(Cpu65c02::INT_NMI_VECTOR + 1)) << 8));
+
+    primeCpuState(cpu, startPc, Cpu65c02::TABLE_NMI, 6, 0x00, 0x00, 0x00, 0x20, 0xFF);
+
+    for( int i = 0; i<5; ++i ) {
+        cpu.cycle();
+        E2TEST_ASSERT_EQ(startPc, cpu.getProgramCounter());
+    }
+    cpu.cycle();
+    E2TEST_ASSERT_EQ(nmiVector, cpu.getProgramCounter());
+    E2TEST_ASSERT_EQ(0xFC, static_cast<int>(cpu.getRegisterS()));
+    E2TEST_ASSERT_EQ(6, cpu.getLastInstructionCycleCount());
 }

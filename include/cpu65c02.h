@@ -171,6 +171,7 @@ private:
 	int multiplier;
 	int cycleCount;
 	int idleCycle;
+	int lastInstructionCycleCount;
 
 	const OpcodeTable* opcode;
 	const OpcodeTable* opcodeTable;
@@ -264,6 +265,7 @@ public:
 	Uint8 getRegisterY() const;
 	Uint8 getRegisterP() const;
 	Uint8 getRegisterS() const;
+	int getLastInstructionCycleCount() const;
 
 	std::string getOpcodeString();
 		// Returns decoded opcode and operands
