@@ -647,25 +647,16 @@ Uint8 Memory128k::_readIo( Uint16 address )
 			return _randRead();
 			
 		default:
-		
-#ifdef _MEMORY_TEST_OUTPUT	
-warningStub: ///
-#endif
 			if( address >= 0xC090 ) {
 				// Slot I/O soft-switch window: C090-C0FF maps as 16-byte windows for slots 1-7.
+				// If no card is installed for this window, reads float to the video bus.
 				int slot = (address - 0xc080) >> 4;
 				if( slot>=1 && slot<=7 && slotCard[slot] != NULL )
 					return slotCard[slot]->getMem16b(address & 0x0f);
-#ifdef _MEMORY_TEST_OUTPUT	
-				cerr << "Warning: Peripheral read not implemented at address " << hex << setw(2) << (int) address << "\n";
-#endif
 				return _readFloatingBus();
 			}
 			else {
-				// Undefined switch
-#ifdef _MEMORY_TEST_OUTPUT	
-				cerr << "Warning: Read to switch " << hex << setw(2) << (int) address << " not handled\n";
-#endif
+				// Undefined soft-switch reads follow floating-bus behavior.
 				return _readFloatingBus();
 			}
 		
