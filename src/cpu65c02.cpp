@@ -31,7 +31,12 @@
 using namespace std;
 
 
-/// TODO: Sather 4-27 and C-15 contains more information on per-cycle instruction effects and double / triple / quadruple strobe effects ///
+// Cycle timing model notes:
+// - Base opcode cycle counts come from the opcode table below.
+// - Dynamic adders (branch taken/page-cross indexed reads) are applied at runtime
+//   via BRANCH/PTR_ADD and reflected in lastInstructionCycleCount.
+// - Runtime coverage for page-cross and IRQ/NMI service timing lives in
+//   tests/microcode/cpu65c02_profile_microcode_tests.cpp.
 
 #define P_REG_ALT(arg, flag)  { if(arg) _P |= (flag); else _P &= ~(flag); }
 
@@ -353,8 +358,8 @@ const Cpu65c02::OpcodeTable Cpu65c02::OPCODE_65C02[0x105] =
 	{ _INC,       _ABS_X,     3,          7 },  // 0xfe
 	{ _NOP,       _IMP,       1,          1 },  // 0xff
 	
-	{ _IRQ,       _IMP,       0,          6 },  /// TODO: Verify cycle time
-	{ _NMI,       _IMP,       0,          6 },  /// TODO: Verify cycle time
+	{ _IRQ,       _IMP,       0,          6 },  // 65C02 interrupt service sequence
+	{ _NMI,       _IMP,       0,          6 },  // 65C02 interrupt service sequence
 	{ _RES,       _IMP,       0,          6 },
 	
 	{ _HLT,       _IMP,       0,          1 },
@@ -410,12 +415,10 @@ void Cpu65c02::_cycle()
 	// Default instruction position
 	Uint16 newPc = _PC + opcode->instrSize;
 
-	/// TEST:
-	///  Dereferenced addresses on page zero forces both low and high bytes to be pulled from page zero, even if the page boundary is crossed
-	///  According to the NCR 65C02 Specs, all zero-page indirect opcodes use this convention except "zero-page indirect addressing" itself
-	///  It would seem to follow that zero-page indirect addressing would also follow this convention
-
-	/// TODO: These take one additional clock if the effective address page and given address page are different ///
+	// Addressing/timing notes:
+	// - Zero-page pointer fetches use zero-page wrap semantics.
+	// - Indexed address modes add one dynamic cycle on page-cross via PTR_ADD.
+	// - Branches add one (taken) or two (taken+cross-page) dynamic cycles via BRANCH.
 
 	// Find these values by their addressing mode
 	Uint16 operandPtr = 0x0000;
@@ -1077,8 +1080,7 @@ void Cpu65c02::_cycle()
 			break;
 
 		case _IRQ:
-			// IRQ's are given priority starting with slot 1 to 7 (4-16 of Sather)
-			/// Verify this ///
+			// Maskable interrupt service: push PC/P, set I, clear B/D, jump IRQ vector.
 			_pushStack(newPc>>8);
 			_pushStack(newPc);
 			_pushStack(_P);
@@ -1088,7 +1090,7 @@ void Cpu65c02::_cycle()
 			break;
 
 		case _NMI:
-			/// Verify this ///
+			// Non-maskable interrupt service mirrors IRQ sequence using NMI vector.
 			_pushStack(newPc>>8);
 			_pushStack(newPc);
 			_pushStack(_P);
