@@ -429,21 +429,21 @@ Uint8 Memory128k::_readIo( Uint16 address )
 			// OPNAPPLE / PB0
 			// Bit 7 is used to indicate if open apple or PB0 game button is pressed
 			// Bits 0-6 are undefined
-			return _randRead7bit() | ( (keyboard->getOpenApple() ) << 7 );; /// || joystick->getButton(0)
+			return (_readFloatingBus() & 0x7f) | ((keyboard->getOpenApple()) << 7); /// || joystick->getButton(0)
 	
 		case 0xc062:
 		case 0xc06a:
 			// CLSAPPLE / PB1
 			// Bit 7 is used to indicate if open apple or PB1 game button is pressed
 			// Bits 0-6 are undefined
-			return _randRead7bit() | ( (keyboard->getClosedApple()) << 7 ); /// || joystick->getButton(1)
+			return (_readFloatingBus() & 0x7f) | ((keyboard->getClosedApple()) << 7); /// || joystick->getButton(1)
 
 		case 0xc063:
 		case 0xc06b:
 			// SHIFT / PB2
 			// Bit 7 is used to indicate if shift or PB2 game button is pressed
 			// Bits 0-6 are undefined
-			return _randRead7bit() | ( (keyboard->getShiftKey()) << 7 ); /// || joystick->getButton(2)
+			return (_readFloatingBus() & 0x7f) | ((keyboard->getShiftKey()) << 7); /// || joystick->getButton(2)
 
 		case 0xc060:
 		case 0xc068:
@@ -1067,13 +1067,6 @@ Uint8 Memory128k::_randRead()
 {
 	// Use floating-bus shaped readback for undefined soft-switch reads.
 	return _readFloatingBus();
-}
-
-Uint8 Memory128k::_randRead7bit()
-{
-	/// STUB ///
-	/// See Sather 5-29, 5-40 for possible values
-	return _randRead()&0x7f;
 }
 
 Uint8 Memory128k::_readFloatingBus()
