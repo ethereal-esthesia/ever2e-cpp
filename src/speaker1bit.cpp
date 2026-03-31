@@ -81,8 +81,7 @@ void Speaker1bit::cycle( Sint32 elapsedNanoseconds )
 
 	// Move diafragm
 	float accel = -SPRING_FORCE*pos;
-	accel += driveOutward ? MAGNET_FORCE : -MAGNET_FORCE;
-	accel -= vel*FRICTION;
+	accel += driveOutward ? MAGNET_FORCE_OUT : -MAGNET_FORCE_IN;
 	vel += accel;
 	pos += vel;
 
