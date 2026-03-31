@@ -56,13 +56,13 @@ class Speaker1bit
 	unsigned int cycleCount;           // Number of cycles played (used to tell which cycles to skip)
 	
 #ifdef SPEAKER_STATIC
-	static constexpr float FRICTION = .01;                                 // 1% acceleration loss per unit velocity
-	static constexpr float MAGNET_FORCE = 11.*SKIP_CYCLES*SKIP_CYCLES;     // Continuous latch-driven force in units distance per increment
+	static constexpr float MAGNET_FORCE_OUT = 11.*SKIP_CYCLES*SKIP_CYCLES; // Outward drive force
+	static constexpr float MAGNET_FORCE_IN = 4.*SKIP_CYCLES*SKIP_CYCLES;   // Inward drive force (intentionally lower)
 	static constexpr float SPRING_FORCE = .00049*SKIP_CYCLES*SKIP_CYCLES;  // Units reverse spring acceleration per unit distance per increment
 #else
 	// Remove typical Apple IIe speaker static
-	static constexpr float FRICTION = .02;        
-	static constexpr float MAGNET_FORCE = 34*SKIP_CYCLES*SKIP_CYCLES;
+	static constexpr float MAGNET_FORCE_OUT = 34*SKIP_CYCLES*SKIP_CYCLES;
+	static constexpr float MAGNET_FORCE_IN = 12*SKIP_CYCLES*SKIP_CYCLES;
 	static constexpr float SPRING_FORCE = .0002*SKIP_CYCLES*SKIP_CYCLES;
 #endif
 
