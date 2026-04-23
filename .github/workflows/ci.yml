@@ -12,6 +12,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: brew install sdl3
+
       - name: Run smoke test
         run: ./scripts/macos/run_smoke.sh
 
@@ -21,6 +24,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install sdl3
 
       - name: Run full main tests
         run: ./scripts/macos/run_main_tests.sh
