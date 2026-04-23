@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <limits.h>
 #include <sstream>
 #include <string>
@@ -68,6 +69,32 @@ std::vector<std::string> runCommandLines(const std::string& command)
     return lines;
 }
 
+std::string currentWorkingDirectory()
+{
+    char buf[PATH_MAX];
+    if( getcwd(buf, sizeof(buf))==NULL )
+        e2test::fail("getcwd failed");
+    return std::string(buf);
+}
+
+bool pathExists(const std::string& path)
+{
+    return access(path.c_str(), F_OK)==0;
+}
+
+std::string shellQuote(const std::string& value)
+{
+    std::string quoted = "'";
+    for( char ch : value ) {
+        if( ch=='\'' )
+            quoted += "'\\''";
+        else
+            quoted += ch;
+    }
+    quoted += "'";
+    return quoted;
+}
+
 void setDisplaySwitches(Memory128k& memory, bool text, bool mixed, bool hires, bool page2, bool store80)
 {
     if( text ) memory.setSwitch(Memory128k::_TEXT); else memory.resetSwitch(Memory128k::_TEXT);
@@ -100,15 +127,22 @@ std::vector<std::string> buildBobLines(Memory128k& memory, Monitor560x192& monit
 
 E2TEST_CASE(floatingBusBobReferenceMatchesEver2ePyOracleLineByLine)
 {
-    ScopedCwd cwd("release");
-    E2TEST_ASSERT_TRUE(cwd.active());
-
     const char* cppRootEnv = getenv("EVER2E_CPP_ROOT");
     const char* pyRootEnv = getenv("EVER2E_PY_ROOT");
-    const std::string cppRoot = (cppRootEnv && *cppRootEnv) ? cppRootEnv : "/Users/shane/Project/ever2e-cpp";
-    const std::string pyRoot = (pyRootEnv && *pyRootEnv) ? pyRootEnv : "/Users/shane/Project/ever2e-py";
+    const std::string cppRoot = (cppRootEnv && *cppRootEnv) ? cppRootEnv : currentWorkingDirectory();
+    const std::string pyRoot = (pyRootEnv && *pyRootEnv) ? pyRootEnv : cppRoot + "/../ever2e-py";
     const std::string scriptPath = cppRoot + "/tools/gen_floating_bus_oracle_py.py";
     const int cycles = 1024;
+
+    E2TEST_ASSERT_TRUE(pathExists(scriptPath));
+    if( !pathExists(pyRoot) ) {
+        std::cout << "SKIP floatingBusBobReferenceMatchesEver2ePyOracleLineByLine: ever2e-py not found at "
+                  << pyRoot << "\n";
+        return;
+    }
+
+    ScopedCwd cwd(cppRoot + "/release");
+    E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
     Memory128k memory;
@@ -143,8 +177,8 @@ E2TEST_CASE(floatingBusBobReferenceMatchesEver2ePyOracleLineByLine)
         monitor.resetAll();
 
         std::ostringstream cmd;
-        cmd << "python3 " << scriptPath
-            << " --py-root " << pyRoot
+        cmd << "python3 " << shellQuote(scriptPath)
+            << " --py-root " << shellQuote(pyRoot)
             << " --cycles " << cycles
             << " --text " << (text ? 1 : 0)
             << " --mixed " << (mixed ? 1 : 0)
