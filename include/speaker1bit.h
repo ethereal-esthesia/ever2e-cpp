@@ -56,26 +56,30 @@ class Speaker1bit
 	unsigned int cycleCount;           // Number of cycles played (used to tell which cycles to skip)
 	
 #ifdef SPEAKER_STATIC
-	static constexpr float MAGNET_FORCE_OUT = 11.*SKIP_CYCLES*SKIP_CYCLES; // Outward drive force
-	static constexpr float MAGNET_FORCE_IN = 4.*SKIP_CYCLES*SKIP_CYCLES;   // Inward drive force (intentionally lower)
+	static constexpr float FRICTION = .01;                                 // 1% acceleration loss per unit velocity
+	static const Sint32 CHARGE_DURATION = 20/SKIP_CYCLES;                  // 20 cycles
+	static constexpr float MAGNET_FORCE = 11.*SKIP_CYCLES*SKIP_CYCLES;     // Magnet acceleration in units distance per increment
 	static constexpr float SPRING_FORCE = .00049*SKIP_CYCLES*SKIP_CYCLES;  // Units reverse spring acceleration per unit distance per increment
 #else
 	// Remove typical Apple IIe speaker static
-	static constexpr float MAGNET_FORCE_OUT = 34*SKIP_CYCLES*SKIP_CYCLES;
-	static constexpr float MAGNET_FORCE_IN = 12*SKIP_CYCLES*SKIP_CYCLES;
+	static constexpr float FRICTION = .02;
+	static const Sint32 CHARGE_DURATION = 10/SKIP_CYCLES;
+	static constexpr float MAGNET_FORCE = 34*SKIP_CYCLES*SKIP_CYCLES;
 	static constexpr float SPRING_FORCE = .0002*SKIP_CYCLES*SKIP_CYCLES;
 #endif
 
 	float pos;                  // Between (-32768) - 32767 for sampling
 	float vel;                  // Diafragm velocity in units per cycle
-	bool driveOutward;          // Current speaker latch direction (flipped by each toggle)
+	bool toggleChargeNegative;  // Indicates charge of next magnet toggle
+	float charge;               // Indicates current magnet force (+/- MAGNET_FORCE)
+	Sint32 chargeDur;           // Cycles remaining for current charge
 
 	float sampleSum;      // Keeps track of sample sum for averaging
 	int sampleTotal;      // Number of consecutive samples in sampleSum
 	Sint32 sampleLength;  // Number of nanoseconds per sound sample
 
 	bool samplePending;   // Indicates if sound sample is waiting to be processed
-	Uint16 soundSample;   // Sample to be processed
+	Sint16 soundSample;   // Sample to be processed
 	
 	void _commitSoundWord( Sint16 word );
 	
@@ -93,7 +97,7 @@ public:
 		// Commits 1 CPU cycle to sound buffer
 		// Should be called in order, allowing other emulation routines to finish their cycles in turn
 	
-	bool pollSound( Uint16& sample );
+	bool pollSound( Sint16& sample );
 		// Returns true if a sound word is pending (stored to "sample"), false otherwise
 	
 };

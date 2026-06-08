@@ -417,6 +417,7 @@ int main( int args, char** argv )
 {
 	string pasteFileArg;
 	string cpuProfileArg;
+	string recordVideoPath;
 	string traceStartPcArg;
 	vector<string> traceWriteArgTokens;
 	vector<string> haltExecutionArgTokens;
@@ -427,6 +428,7 @@ int main( int args, char** argv )
 	app.add_option("emu-path", EmuConfigPath, "Path to required .emu config")->required();
 	app.add_option("--rom-file", RomFileOverridePath, "Override ROM path (replaces binary.file from .emu)");
 	app.add_option("--paste-file", pasteFileArg, "Paste script file path");
+	app.add_option("--record-video", recordVideoPath, "Record emulator video/audio to a Matroska FFV1 file");
 	app.add_option("--guest-core-dump", GuestCoreDumpFile, "Write guest core dump to file");
 	app.add_flag("--print-text-at-exit", PrintTextAtExit, "Print text screen at exit");
 	app.add_flag("--print-cpu-state-at-exit", PrintCpuStateAtExit, "Print CPU state at exit");
@@ -526,6 +528,8 @@ int main( int args, char** argv )
 		romPath = RomFileOverridePath;
 	EventLoop emulator(SelectedCpuProfile, romPath);
 	installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
+	if( !recordVideoPath.empty() && !emulator.startRecording(recordVideoPath) )
+		return 1;
 	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);
 	emulator.setDebugMenuToggle(DebugMode);
 	emulator.memory->clearTraceWriteAddresses();

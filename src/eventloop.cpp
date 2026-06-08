@@ -250,11 +250,14 @@ EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPat
 	fullScreen = false;
 	manager = new EventManager(WINDOW_X_SIZE, WINDOW_Y_SIZE, BPP, false, "Ever2e", "icon.png");
 	surface = manager->getVideoSurface();
-	sound = new SoundBuffer();		
+	sound = new SoundBuffer();
+	recorder = NULL;
 	hostKeyboard = new HostKeyboard();		
 	memory = new Memory128k(romPath.empty() ? string("apple2e.rom") : romPath);
 	monitor = new Monitor560x192(surface, memory);
-	monitor->setOffset( (WINDOW_X_SIZE-X_SIZE)>>1, (WINDOW_Y_SIZE-Y_SIZE)>>1 );
+	screenXOffset = (WINDOW_X_SIZE-X_SIZE)>>1;
+	screenYOffset = (WINDOW_Y_SIZE-Y_SIZE)>>1;
+	monitor->setOffset(screenXOffset, screenYOffset);
 	cpu = new Cpu65c02(memory, cpuProfile);                
 	cpuMult = 1;
 	cpu->setMultiplier(cpuMult);           
@@ -319,6 +322,7 @@ EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPat
 EventLoop::~EventLoop()
 {
 
+	delete recorder;
 	delete manager;
 	delete sound;
 	delete hostKeyboard;		
@@ -539,11 +543,15 @@ void EventLoop::cycle()
 							fullScreen = !fullScreen;
 							if( fullScreen ) {
 								manager->resizeDisplay(FULL_X_SIZE, FULL_Y_SIZE, BPP, true);
-								monitor->setOffset( (FULL_X_SIZE-X_SIZE)>>1, (FULL_Y_SIZE-Y_SIZE)>>1 );
+								screenXOffset = (FULL_X_SIZE-X_SIZE)>>1;
+								screenYOffset = (FULL_Y_SIZE-Y_SIZE)>>1;
+								monitor->setOffset(screenXOffset, screenYOffset);
 							}
 							else {
 								manager->resizeDisplay(WINDOW_X_SIZE, WINDOW_Y_SIZE, BPP, false);
-								monitor->setOffset( (WINDOW_X_SIZE-X_SIZE)>>1, (WINDOW_Y_SIZE-Y_SIZE)>>1 );
+								screenXOffset = (WINDOW_X_SIZE-X_SIZE)>>1;
+								screenYOffset = (WINDOW_Y_SIZE-Y_SIZE)>>1;
+								monitor->setOffset(screenXOffset, screenYOffset);
 							}
 							break;
 
@@ -780,6 +788,8 @@ void EventLoop::cycle()
 					idleCycle = false;
 			}
 			manager->videoRefresh();
+			if( recorder!=NULL && recorder->isRunning() )
+				recorder->captureVideoFrame(surface->getSurface(), screenXOffset, screenYOffset);
 		}
 		else if( callBackPerCycle && hostMenu==MENU_OFF ) {
 			if(  callbackFunc!=NULL )
@@ -790,22 +800,23 @@ void EventLoop::cycle()
 		if( exitStatus )
 			break;
 
-
 		// Cycle hardware
-
-			if( hostMenu==MENU_OFF )
-				keyboard->cycle();
-			if( !idleCycle ) {
-				cpu->cycle();
-			}
+		if( hostMenu==MENU_OFF )
+			keyboard->cycle();
+		if( !idleCycle ) {
+			cpu->cycle();
+		}
 		monitor->cycle();
 		memory->cycle();
 		speaker->cycle(cycleTimeNanoseconds);
 
 		// Communicate with host speaker if a sound sample is complete (approx. every 46,000 emulated cycles at 22050 samples per sec.)
-		Uint16 soundWord;
-		if( speaker->pollSound(soundWord) )
+		Sint16 soundWord;
+		if( speaker->pollSound(soundWord) ) {
 			sound->playSample(soundWord);
+			if( recorder!=NULL && recorder->isRunning() )
+				recorder->captureAudioSample(soundWord);
+		}
 
 		if( stepPhaseActive ) {
 			stepPhaseCount = stepNumber;
@@ -855,6 +866,40 @@ void EventLoop::setUnthrottled( bool enable )
 void EventLoop::setDebugMenuToggle( bool enable )
 {
 	debugMenuToggle = enable;
+}
+
+bool EventLoop::startRecording( const std::string& path )
+{
+	if( recorder!=NULL ) {
+		cerr << "Recording is already active.\n";
+		return false;
+	}
+
+	MediaRecorder::Config config;
+	config.path = path;
+	config.width = X_SIZE;
+	config.height = Y_SIZE;
+	config.fps = 60;
+	config.audioSampleRate = 22050;
+	config.videoQueueFrames = 180;
+	config.audioChunkSamples = 1024;
+
+	recorder = new MediaRecorder(config);
+	if( !recorder->start() ) {
+		delete recorder;
+		recorder = NULL;
+		return false;
+	}
+	return true;
+}
+
+void EventLoop::stopRecording()
+{
+	if( recorder==NULL )
+		return;
+	recorder->stop();
+	delete recorder;
+	recorder = NULL;
 }
 
 void EventLoop::queuePasteText( const Uint8* text, size_t size, bool fromClipboard )

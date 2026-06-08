@@ -44,6 +44,7 @@
 #include "keytrans2e.h"
 #include "hostkey.h"
 #include "savestate.h"
+#include "recorder.h"
 
 // Uncomment these to view speed stat changes (this test maxes out the CPU cycles)
 //#define _BENCHMARK_
@@ -86,6 +87,7 @@ class EventLoop
 	class KeyTrans2e* keyConvert;      // Translates host key values to Apple IIe equivelant
 	class SoundBuffer* sound;          // Host sound interface
 	class HostKeyboard* hostKeyboard;  // Host keyboard interface
+	class MediaRecorder* recorder;    // Optional video/audio recorder
 	SaveState stateBuffer;
 	SaveState keyboardStateBuffer;
 	
@@ -98,6 +100,8 @@ class EventLoop
 	bool idleState;
 	bool idleCycle;		
 	bool unthrottled;
+	int screenXOffset;
+	int screenYOffset;
 
 	Sint16 hue;
 	Sint16 defaultHue;
@@ -153,6 +157,10 @@ public:
 	void setUnthrottled( bool enable );
 
 	void setDebugMenuToggle( bool enable );
+
+	bool startRecording( const std::string& path );
+
+	void stopRecording();
 
 	void queuePasteText( const Uint8* text, size_t size, bool fromClipboard = false );
 

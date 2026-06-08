@@ -24,82 +24,55 @@
  *************************************************************************/
 
 
-#ifndef _PIXEL_H_
-#define _PIXEL_H_
+#ifndef _RECORDER_H_
+#define _RECORDER_H_
 
-#include <iostream>
-#include <cassert>
+
+#include <cstddef>
+#include <string>
 #include "SDL.h"
-#include "SDL_image.h"
 
 
-
-const SDL_Color COLOR_WHITE = {255, 255, 255, 0};
-const SDL_Color COLOR_BLACK = {0, 0, 0, 0};
-
-
-
-class PixelSurface
+class MediaRecorder
 {
-
-	SDL_Surface* surface;
-	bool locked;
-	
-	void _newSurface( int xSize, int ySize, int bpp );
 
 public:
 
-	PixelSurface( SDL_Surface* surface, bool locked = false );
-		// Can be used for compatibility with alternative SDL libraries
-		// If "locked" is set, mode modifications generate an error - useful for shared surfaces
+	struct Config
+	{
+		std::string path;
+		int width;
+		int height;
+		int fps;
+		int audioSampleRate;
+		int videoQueueFrames;
+		int audioChunkSamples;
+	};
 
-	PixelSurface( PixelSurface& copySurface );
-	
-	PixelSurface( int xSize, int ySize, int bpp );
+	MediaRecorder( const Config& config );
 
-	PixelSurface( const char* fileName );
-	
-	~PixelSurface();
+	~MediaRecorder();
 
-	void setSurface( SDL_Surface* newSurface );
-	
-	void setPalette( SDL_Color *palette, int entries );
+	bool start();
 
-	void setGreyPalette();
-	
-	int getXSize();
-	
-	int getYSize();
+	void stop();
 
-	int getBpp();
+	bool isRunning() const;
 
-	SDL_Surface* getSurface();
+	void captureVideoFrame( SDL_Surface* source, int sourceX, int sourceY );
 
-	void fillSurface( SDL_Color color = (SDL_Color) {0, 0, 0, 0} );
+	void captureAudioSample( Sint16 sample );
 
-	void resize( int xSize, int ySize );
-	
-	void convertToColorDepth( int bpp );
-	
-	void loadFile( const char* fileName );
+	size_t getDroppedVideoFrames() const;
 
-	Uint32 colorToPixel( SDL_Color color );
+	size_t getDroppedAudioSamples() const;
 
-	SDL_Color pixelToColor( Uint32 pixel );
+private:
 
-	void putPixel32( int x, int y, Uint32 pixel );
-
-	void putPixelLine32( int x, int y, const Uint32* pixel, int entries );
-
-	Uint32 getPixel32( int x, int y );
-
-	void putPixel( int x, int y, SDL_Color color );
-
-	SDL_Color getPixel( int x, int y );
-
-	void copy( PixelSurface& copySurface, int x = 0, int y = 0 );
+	struct Impl;
+	Impl* impl;
 
 };
 
 
-#endif  // _PIXEL_H_
+#endif  // _RECORDER_H_

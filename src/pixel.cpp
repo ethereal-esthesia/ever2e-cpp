@@ -147,6 +147,11 @@ int PixelSurface::getBpp()
 	return SDL_BITSPERPIXEL(surface->format);
 }
 
+SDL_Surface* PixelSurface::getSurface()
+{
+	return surface;
+}
+
 void PixelSurface::fillSurface( SDL_Color color )
 {
 	Uint32 pixel = SDL_MapSurfaceRGB(surface, color.r, color.g, color.b);
