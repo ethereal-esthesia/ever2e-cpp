@@ -61,8 +61,10 @@ class EventLoop
 {
 
 	static const int BLANK_BORDER = 16;
-	static const int X_SIZE = Monitor560x192::X_RES*Monitor560x192::X_MULT+Monitor560x192::X_OFFSET;
-	static const int Y_SIZE = Monitor560x192::Y_RES*Monitor560x192::Y_MULT+Monitor560x192::Y_OFFSET;
+	static const int RASTER_X_SIZE = Monitor560x192::X_RES*Monitor560x192::X_MULT;
+	static const int RASTER_Y_SIZE = Monitor560x192::Y_RES*Monitor560x192::Y_MULT;
+	static const int X_SIZE = RASTER_X_SIZE+Monitor560x192::X_OFFSET;
+	static const int Y_SIZE = RASTER_Y_SIZE+Monitor560x192::Y_OFFSET;
 
 	static const int WINDOW_X_SIZE = X_SIZE+(BLANK_BORDER<<1);
 	static const int WINDOW_Y_SIZE = Y_SIZE+(BLANK_BORDER<<1);

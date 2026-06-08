@@ -877,8 +877,8 @@ bool EventLoop::startRecording( const std::string& path )
 
 	MediaRecorder::Config config;
 	config.path = path;
-	config.width = X_SIZE;
-	config.height = Y_SIZE;
+	config.width = RASTER_X_SIZE;
+	config.height = RASTER_Y_SIZE;
 	config.fps = 60;
 	config.audioSampleRate = 22050;
 	config.videoQueueFrames = 180;

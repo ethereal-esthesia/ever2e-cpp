@@ -126,7 +126,8 @@ struct MediaRecorder::Impl
 		  failed(false),
 		  headerWritten(false),
 		  droppedVideoFrames(0),
-		  droppedAudioSamples(0)
+		  droppedAudioSamples(0),
+		  sourceRectWarningShown(false)
 	{
 		audioScratch.reserve((size_t)this->config.audioChunkSamples);
 	}
@@ -259,6 +260,7 @@ private:
 	bool headerWritten;
 	atomic<size_t> droppedVideoFrames;
 	atomic<size_t> droppedAudioSamples;
+	bool sourceRectWarningShown;
 
 	bool openOutput()
 	{
@@ -437,6 +439,14 @@ private:
 			sourceX+config.width>source->w ||
 			sourceY+config.height>source->h ||
 			source->pixels==NULL ) {
+			if( !sourceRectWarningShown ) {
+				cerr << "Recording frame source rectangle "
+					 << sourceX << "," << sourceY << " "
+					 << config.width << "x" << config.height
+					 << " does not fit source surface "
+					 << source->w << "x" << source->h << ".\n";
+				sourceRectWarningShown = true;
+			}
 			return false;
 		}
 
