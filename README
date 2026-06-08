@@ -63,6 +63,21 @@ Direct binary usage (required positional `.emu` config):
     ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
     ./build/macos/ever2e release/Apple2eNoSlots.emu --rom-file /absolute/path/to/APPLE2E.ROM --headless --steps 1000
 
+Recording video/audio:
+
+    ./build/macos/ever2e release/Apple2eNoSlots.emu \
+        --headless \
+        --paste-file samples/quick_flip.bas \
+        --steps 20000000 \
+        --record-video build/recordings/quick_flip_headless.mkv
+
+`--record-video` writes a Matroska file with FFV1 video and signed 16-bit mono
+PCM audio. Headless recording renders the emulator display to an offscreen
+560x384 raster buffer instead of scraping the dummy SDL window, and it waits for
+the encoder rather than dropping video frames. Windowed recording uses the same
+recorder but may drop frames if encoding falls behind so interactive emulation
+stays responsive.
+
 Optional cleanup:
 
     ./scripts/macos/clean.sh
@@ -129,6 +144,10 @@ http://cursorcorner.net/project.html
 Install SDL and SDL_image developer libraries:
 http://www.libsdl.org/
 http://www.libsdl.org/projects/SDL_image/
+
+Install FFmpeg developer libraries to enable `--record-video`. If FFmpeg is not
+available at configure time, the emulator still builds but recording support is
+disabled.
 
 Under Windows '98 or later:
 Compile using msysgit or Microsoft Visual C++.
