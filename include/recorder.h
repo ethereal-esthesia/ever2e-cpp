@@ -46,6 +46,7 @@ public:
 		int fps;
 		int audioSampleRate;
 		int videoQueueFrames;
+		bool dropVideoFrames;
 		int audioChunkSamples;
 	};
 

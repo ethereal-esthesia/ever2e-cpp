@@ -898,6 +898,7 @@ bool EventLoop::startRecording( const std::string& path )
 	config.fps = 60;
 	config.audioSampleRate = 22050;
 	config.videoQueueFrames = headlessMode ? 300 : 180;
+	config.dropVideoFrames = !headlessMode;
 	config.audioChunkSamples = 1024;
 
 	recorder = new MediaRecorder(config);

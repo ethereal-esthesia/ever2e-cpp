@@ -163,7 +163,7 @@ struct MediaRecorder::Impl
 			lock_guard<mutex> lock(queueMutex);
 			stopping = true;
 		}
-		queueCondition.notify_one();
+		queueCondition.notify_all();
 		if( worker.joinable() )
 			worker.join();
 
@@ -411,16 +411,24 @@ private:
 
 	unique_ptr<VideoBuffer> acquireVideoBuffer()
 	{
-		{
-			lock_guard<mutex> lock(queueMutex);
+		unique_lock<mutex> lock(queueMutex);
+		for( ;; ) {
 			if( !freeVideoBuffers.empty() ) {
 				unique_ptr<VideoBuffer> buffer = std::move(freeVideoBuffers.front());
 				freeVideoBuffers.pop_front();
 				return buffer;
 			}
-			if( allocatedVideoBuffers>=(size_t)config.videoQueueFrames )
+			if( allocatedVideoBuffers<(size_t)config.videoQueueFrames ) {
+				allocatedVideoBuffers++;
+				break;
+			}
+			if( config.dropVideoFrames )
 				return unique_ptr<VideoBuffer>();
-			allocatedVideoBuffers++;
+			queueCondition.wait(lock, [this] {
+				return stopping || !accepting.load() || failed.load() || !freeVideoBuffers.empty();
+			});
+			if( stopping || !accepting.load() || failed.load() )
+				return unique_ptr<VideoBuffer>();
 		}
 		return unique_ptr<VideoBuffer>(new VideoBuffer(videoFrameBytes));
 	}
@@ -431,6 +439,7 @@ private:
 			return;
 		lock_guard<mutex> lock(queueMutex);
 		freeVideoBuffers.push_back(std::move(buffer));
+		queueCondition.notify_one();
 	}
 
 	bool copyFrame( SDL_Surface* source, int sourceX, int sourceY, VideoBuffer& buffer )
@@ -532,6 +541,7 @@ private:
 				accepting.store(false);
 				lock_guard<mutex> lock(queueMutex);
 				workQueue.clear();
+				queueCondition.notify_all();
 				break;
 			}
 		}
