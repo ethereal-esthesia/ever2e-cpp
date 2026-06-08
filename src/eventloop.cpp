@@ -154,7 +154,8 @@ void EventLoop::_toggleHostInterface( HostMenuType type )
 			// Restore pause status
 			if( idleState ) {
 				monitor->setIdleState(true);
-				manager->videoRefresh();
+				if( !headlessMode )
+					manager->videoRefresh();
 			}
 			break;
 
@@ -240,7 +241,7 @@ void EventLoop::_helpMenuCycle()
 	
 }
 
-EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPath )
+EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPath, bool headless )
 {
 
 #ifdef _CONSOLE_OUT
@@ -248,15 +249,25 @@ EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPat
 #endif		
 
 	fullScreen = false;
+	headlessMode = headless;
 	manager = new EventManager(WINDOW_X_SIZE, WINDOW_Y_SIZE, BPP, false, "Ever2e", "icon.png");
-	surface = manager->getVideoSurface();
+	if( headlessMode ) {
+		surface = new PixelSurface(RASTER_X_SIZE, RASTER_Y_SIZE, BPP);
+		ownsSurface = true;
+		screenXOffset = 0;
+		screenYOffset = 0;
+	}
+	else {
+		surface = manager->getVideoSurface();
+		ownsSurface = false;
+		screenXOffset = (WINDOW_X_SIZE-X_SIZE)>>1;
+		screenYOffset = (WINDOW_Y_SIZE-Y_SIZE)>>1;
+	}
 	sound = new SoundBuffer();
 	recorder = NULL;
 	hostKeyboard = new HostKeyboard();		
 	memory = new Memory128k(romPath.empty() ? string("apple2e.rom") : romPath);
 	monitor = new Monitor560x192(surface, memory);
-	screenXOffset = (WINDOW_X_SIZE-X_SIZE)>>1;
-	screenYOffset = (WINDOW_Y_SIZE-Y_SIZE)>>1;
 	monitor->setOffset(screenXOffset, screenYOffset);
 	cpu = new Cpu65c02(memory, cpuProfile);                
 	cpuMult = 1;
@@ -323,11 +334,13 @@ EventLoop::~EventLoop()
 {
 
 	delete recorder;
+	delete monitor;
+	if( ownsSurface )
+		delete surface;
 	delete manager;
 	delete sound;
-	delete hostKeyboard;		
+	delete hostKeyboard;
 	delete memory;
-	delete monitor;
 	delete cpu;
 	delete keyboard;
 	delete keyConvert;
@@ -577,7 +590,8 @@ void EventLoop::cycle()
 							// Toggle idle video emulation state
 							idleState = !idleState;
 							monitor->setIdleState(idleState);
-							manager->videoRefresh();
+							if( !headlessMode )
+								manager->videoRefresh();
 							break;
 							
 						default: {
@@ -646,7 +660,8 @@ void EventLoop::cycle()
 				case SDL_EVENT_WINDOW_EXPOSED:
 					if( idleState ) {
 						monitor->refreshFrame();
-						manager->videoRefresh();
+						if( !headlessMode )
+							manager->videoRefresh();
 					}
 					break;
 					
@@ -787,7 +802,8 @@ void EventLoop::cycle()
 				else
 					idleCycle = false;
 			}
-			manager->videoRefresh();
+			if( !headlessMode )
+				manager->videoRefresh();
 			if( recorder!=NULL && recorder->isRunning() )
 				recorder->captureVideoFrame(surface->getSurface(), screenXOffset, screenYOffset);
 		}
@@ -881,7 +897,7 @@ bool EventLoop::startRecording( const std::string& path )
 	config.height = RASTER_Y_SIZE;
 	config.fps = 60;
 	config.audioSampleRate = 22050;
-	config.videoQueueFrames = 180;
+	config.videoQueueFrames = headlessMode ? 300 : 180;
 	config.audioChunkSamples = 1024;
 
 	recorder = new MediaRecorder(config);

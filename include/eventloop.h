@@ -86,6 +86,7 @@ class EventLoop
 	
 	class EventManager* manager;       // Host video / event interface
 	class PixelSurface* surface;       // Host video buffer
+	bool ownsSurface;
 	class KeyTrans2e* keyConvert;      // Translates host key values to Apple IIe equivelant
 	class SoundBuffer* sound;          // Host sound interface
 	class HostKeyboard* hostKeyboard;  // Host keyboard interface
@@ -102,6 +103,7 @@ class EventLoop
 	bool idleState;
 	bool idleCycle;		
 	bool unthrottled;
+	bool headlessMode;
 	int screenXOffset;
 	int screenYOffset;
 
@@ -140,7 +142,7 @@ public:
 	class Keyboard2e* keyboard;     // The keyboard needs access to the monitor for syncing purposes and the CPU for RESET interrupt
 	class Speaker1bit* speaker;     // Requires no access to other hardware, returns sound information via polling
 
-	EventLoop( Cpu65c02::CpuProfile cpuProfile = Cpu65c02::PROFILE_CMD, const std::string& romPath = std::string() );
+	EventLoop( Cpu65c02::CpuProfile cpuProfile = Cpu65c02::PROFILE_CMD, const std::string& romPath = std::string(), bool headless = false );
 
 	~EventLoop();
 	

@@ -526,7 +526,7 @@ int main( int args, char** argv )
 		romPath = resolveEmuRelativePath(emuConfig, trimString(binIt->second));
 	if( !RomFileOverridePath.empty() )
 		romPath = RomFileOverridePath;
-	EventLoop emulator(SelectedCpuProfile, romPath);
+	EventLoop emulator(SelectedCpuProfile, romPath, HeadlessMode);
 	installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
 	if( !recordVideoPath.empty() && !emulator.startRecording(recordVideoPath) )
 		return 1;
