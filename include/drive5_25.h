@@ -66,7 +66,7 @@ class Floppy525Controller : public PeripheralCard16bit
 	int driveOffRequest;
 	bool writeOn;
 
-	void loadRom();
+	void loadRom( const std::string& romPath );
 	void loadImage( int drive );
 	void saveImage( int drive );
 	void ensureImageLoaded( int drive );
@@ -78,7 +78,8 @@ class Floppy525Controller : public PeripheralCard16bit
 	Uint8 accessSwitch( Uint8 offset, bool isWrite, Uint8 value );
 
 public:
-	Floppy525Controller( int slot, const std::string& drive1Path, const std::string& drive2Path );
+	Floppy525Controller( int slot, const std::string& drive1Path, const std::string& drive2Path,
+			const std::string& romPath = std::string() );
 	~Floppy525Controller() override;
 
 	void putMem16b( Uint8 offset, Uint8 byte ) override;

@@ -63,6 +63,7 @@ Cpu65c02::CpuProfile SelectedCpuProfile = Cpu65c02::PROFILE_CMD;
 bool CpuProfileSetByCli = false;
 vector<Uint16> HaltExecutionPcs;
 vector<Uint16> RequiredHaltPcs;
+vector<pair<Uint16, Uint8> > MonitorSequenceWrites;
 bool HaltedAtExecutionPc = false;
 Uint16 HaltedExecutionPc = 0;
 string EmuConfigPath;
@@ -224,15 +225,21 @@ void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<Peri
 			string drive2;
 			map<string, string>::const_iterator d1 = cfg.properties.find(key + ".drive.1.file");
 			map<string, string>::const_iterator d2 = cfg.properties.find(key + ".drive.2.file");
+			map<string, string>::const_iterator rom = cfg.properties.find(key + ".rom.file");
 			if( d1!=cfg.properties.end() )
 				drive1 = resolveEmuRelativePathWithParentFallback(cfg, trimString(d1->second));
 			if( d2!=cfg.properties.end() )
 				drive2 = resolveEmuRelativePathWithParentFallback(cfg, trimString(d2->second));
+			string romPath;
+			if( rom!=cfg.properties.end() )
+				romPath = resolveEmuRelativePathWithParentFallback(cfg, trimString(rom->second));
 
-			Floppy525Controller* card = new Floppy525Controller(slot, drive1, drive2);
+			Floppy525Controller* card = new Floppy525Controller(slot, drive1, drive2, romPath);
 			ownedCards.push_back(card);
 			emulator->memory->putSlot(slot, card);
 			cout << "Slot " << slot << ": " << className;
+			if( !romPath.empty() )
+				cout << " rom=" << romPath;
 			if( !drive1.empty() )
 				cout << " drive1=" << drive1;
 			if( !drive2.empty() )
@@ -271,6 +278,35 @@ bool appendWordListArg( const string& rawList, vector<Uint16>& out )
 		if( !parseHexWordArg(token, value) )
 			return false;
 		out.push_back(value);
+	}
+	return !out.empty();
+}
+
+bool parseHexByteArg( const string& raw, Uint8& out )
+{
+	Uint16 word;
+	if( !parseHexWordArg(raw, word) || word>0xff )
+		return false;
+	out = (Uint8) word;
+	return true;
+}
+
+bool appendMonitorSequenceWriteArg( const string& rawList, vector<pair<Uint16, Uint8> >& out )
+{
+	string token;
+	stringstream ss(rawList);
+	while( getline(ss, token, ',') ) {
+		if( token.empty() )
+			return false;
+		size_t colon = token.find(':');
+		if( colon==string::npos || token.find(':', colon+1)!=string::npos )
+			return false;
+		Uint16 address;
+		Uint8 value;
+		if( !parseHexWordArg(trimString(token.substr(0, colon)), address) ||
+				!parseHexByteArg(trimString(token.substr(colon+1)), value) )
+			return false;
+		out.push_back(make_pair(address, value));
 	}
 	return !out.empty();
 }
@@ -458,6 +494,7 @@ int main( int args, char** argv )
 	vector<string> traceWriteArgTokens;
 	vector<string> haltExecutionArgTokens;
 	vector<string> requireHaltArgTokens;
+	vector<string> monitorSequenceWriteArgTokens;
 
 	CLI::App app("Ever2e");
 	app.set_help_flag("--help", "Show help");
@@ -475,6 +512,8 @@ int main( int args, char** argv )
 	app.add_flag("--trace-verbose", TraceVerbose, "Verbose CSV trace format");
 	app.add_option("--trace-start-pc", traceStartPcArg, "Hex start PC (e.g. 0x2000)");
 	app.add_option("--trace-write", traceWriteArgTokens, "Trace writes to hex address list")->delimiter(',');
+	app.add_option("--monitor-seq-write", monitorSequenceWriteArgTokens,
+			"Apply monitor-style write(s) before running, as ADDR:BYTE pairs")->delimiter(',');
 	app.add_option("--halt-execution", haltExecutionArgTokens, "Stop when PC reaches address list")->delimiter(',');
 	app.add_option("--require-halt-pc", requireHaltArgTokens, "Require final PC to be in address list")->delimiter(',');
 	app.add_flag("--headless", HeadlessMode, "Run without video/audio output");
@@ -515,6 +554,12 @@ int main( int args, char** argv )
 			return 1;
 		}
 		TraceWriteAddresses.push_back(value);
+	}
+	for( size_t i = 0; i<monitorSequenceWriteArgTokens.size(); i++ ) {
+		if( !appendMonitorSequenceWriteArg(monitorSequenceWriteArgTokens[i], MonitorSequenceWrites) ) {
+			cerr << "Invalid value for --monitor-seq-write (expected ADDR:BYTE[,ADDR:BYTE])\n";
+			return 1;
+		}
 	}
 	for( size_t i = 0; i<haltExecutionArgTokens.size(); i++ ) {
 		Uint16 value;
@@ -571,6 +616,18 @@ int main( int args, char** argv )
 	emulator.memory->clearTraceWriteAddresses();
 	for( size_t i = 0; i<TraceWriteAddresses.size(); i++ )
 		emulator.memory->addTraceWriteAddress(TraceWriteAddresses[i]);
+	for( size_t i = 0; i<MonitorSequenceWrites.size(); i++ )
+		emulator.memory->putMem(MonitorSequenceWrites[i].first, MonitorSequenceWrites[i].second);
+	if( !MonitorSequenceWrites.empty() ) {
+		cout << "Applied monitor sequence write(s): ";
+		for( size_t i = 0; i<MonitorSequenceWrites.size(); i++ ) {
+			if( i>0 )
+				cout << ", ";
+			cout << hex << uppercase << setw(4) << setfill('0') << (int)MonitorSequenceWrites[i].first
+				 << ":" << setw(2) << (int)MonitorSequenceWrites[i].second << dec;
+		}
+		cout << "\n";
+	}
 	if( !TraceFilePath.empty() ) {
 		TraceFileOut.open(TraceFilePath.c_str(), ios::out | ios::trunc);
 		if( !TraceFileOut.is_open() ) {

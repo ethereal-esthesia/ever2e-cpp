@@ -79,7 +79,8 @@ string upperExtension( const string& path )
 } // namespace
 
 
-Floppy525Controller::Floppy525Controller( int slotNumber, const string& drive1Path, const string& drive2Path )
+Floppy525Controller::Floppy525Controller( int slotNumber, const string& drive1Path, const string& drive2Path,
+		const string& romPath )
 	: slot(slotNumber),
 	  dataRegister(0),
 	  writeRequestRegister(0),
@@ -99,7 +100,7 @@ Floppy525Controller::Floppy525Controller( int slotNumber, const string& drive1Pa
 	phase.fill(0);
 	headHalfTrack.fill(69);
 	headSectorByte.fill(0);
-	loadRom();
+	loadRom(romPath);
 	setIdTag("drive.floppy525.Floppy525Controller");
 	const char* periodEnv = getenv("EVER2E_DISKII_CYCLE_PERIOD");
 	if( periodEnv!=NULL && periodEnv[0]!='\0' ) {
@@ -120,8 +121,28 @@ Floppy525Controller::~Floppy525Controller()
 		killDrive();
 }
 
-void Floppy525Controller::loadRom()
+void Floppy525Controller::loadRom( const string& romPath )
 {
+	if( !romPath.empty() ) {
+		ifstream in(romPath.c_str(), ios::in | ios::binary);
+		if( !in.is_open() ) {
+			cerr << "Unable to open Disk II slot ROM override: " << romPath
+				 << "; using built-in fallback ROM.\n";
+		} else {
+			vector<Uint8> rom(256, 0);
+			in.read(reinterpret_cast<char*>(rom.data()), (streamsize)rom.size());
+			const streamsize readBytes = in.gcount();
+			in.peek();
+			if( readBytes==256 && in.eof() ) {
+				for( int i = 0; i<256; i++ )
+					PeripheralCard16bit::putMem16b((Uint8)i, rom[(size_t)i]);
+				return;
+			}
+			cerr << "Disk II slot ROM override must be exactly 256 bytes: " << romPath
+				 << "; using built-in fallback ROM.\n";
+		}
+	}
+
 	for( int i = 0; i<256; i++ )
 		PeripheralCard16bit::putMem16b((Uint8)i, DISKII_P6_ROM[i]);
 }
