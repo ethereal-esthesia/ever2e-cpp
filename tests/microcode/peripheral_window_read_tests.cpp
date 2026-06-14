@@ -189,6 +189,9 @@ E2TEST_CASE(floppy525ControllerExposesDiskIiSlotRom)
     E2TEST_ASSERT_EQ(0xA2, static_cast<int>(memory.getMem(0xC600)));
     E2TEST_ASSERT_EQ(0x20, static_cast<int>(memory.getMem(0xC601)));
     E2TEST_ASSERT_EQ(0xA0, static_cast<int>(memory.getMem(0xC602)));
+    E2TEST_ASSERT_EQ(0xA4, static_cast<int>(memory.getMem(0xC6C4)));
+    E2TEST_ASSERT_EQ(0x59, static_cast<int>(memory.getMem(0xC6D0)));
+    E2TEST_ASSERT_EQ(0x3D, static_cast<int>(memory.getMem(0xC6F0)));
 
     // Slot I/O switches should dispatch without corrupting the Cn00 ROM window.
     memory.putMem(0xC0E9, 0x00);
