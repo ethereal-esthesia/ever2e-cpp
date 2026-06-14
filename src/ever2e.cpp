@@ -68,6 +68,8 @@ bool HaltedAtExecutionPc = false;
 Uint16 HaltedExecutionPc = 0;
 string EmuConfigPath;
 string RomFileOverridePath;
+string Disk1OverridePath;
+string Disk2OverridePath;
 
 struct EmuConfig
 {
@@ -188,6 +190,50 @@ string resolveEmuRelativePathWithParentFallback( const EmuConfig& cfg, const str
 	if( std::filesystem::exists(parentCandidate) )
 		return parentCandidate.string();
 	return resolved;
+}
+
+string resolveCliPath( const string& fileName )
+{
+	if( fileName.empty() )
+		return fileName;
+	if( isAbsolutePath(fileName) )
+		return std::filesystem::path(fileName).lexically_normal().string();
+	return std::filesystem::absolute(std::filesystem::path(fileName)).lexically_normal().string();
+}
+
+void applyDiskOverrides( EmuConfig& cfg, const string& disk1, const string& disk2 )
+{
+	if( disk1.empty() && disk2.empty() )
+		return;
+	cfg.properties["machine.layout.slot.6"] = "drive.floppy525.Floppy525Controller";
+	if( !disk1.empty() )
+		cfg.properties["machine.layout.slot.6.drive.1.file"] = resolveCliPath(disk1);
+	if( !disk2.empty() )
+		cfg.properties["machine.layout.slot.6.drive.2.file"] = resolveCliPath(disk2);
+}
+
+bool applyPropertyOverride( EmuConfig& cfg, const string& assignment, string& error )
+{
+	size_t split = assignment.find('=');
+	if( split==string::npos || split==0 ) {
+		error = "--set expects name=value, got " + assignment;
+		return false;
+	}
+	string key = trimString(assignment.substr(0, split));
+	if( key.empty() ) {
+		error = "--set requires a non-empty property name";
+		return false;
+	}
+	cfg.properties[key] = assignment.substr(split + 1);
+	return true;
+}
+
+bool applyPropertyOverrides( EmuConfig& cfg, const vector<string>& assignments, string& error )
+{
+	for( size_t i = 0; i<assignments.size(); i++ )
+		if( !applyPropertyOverride(cfg, assignments[i], error) )
+			return false;
+	return true;
 }
 
 void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<PeripheralCard16bit*>& ownedCards )
@@ -492,6 +538,7 @@ int main( int args, char** argv )
 	string recordVideoPath;
 	string traceStartPcArg;
 	vector<string> traceWriteArgTokens;
+	vector<string> propertyOverrideArgs;
 	vector<string> haltExecutionArgTokens;
 	vector<string> requireHaltArgTokens;
 	vector<string> monitorSequenceWriteArgTokens;
@@ -500,6 +547,9 @@ int main( int args, char** argv )
 	app.set_help_flag("--help", "Show help");
 	app.add_option("emu-path", EmuConfigPath, "Path to required .emu config")->required();
 	app.add_option("--rom-file", RomFileOverridePath, "Override ROM path (replaces binary.file from .emu)");
+	app.add_option("--set,--set-property", propertyOverrideArgs, "Override .emu property as name=value; may be repeated");
+	app.add_option("--disk1,--drive1", Disk1OverridePath, "Override slot 6 drive 1 disk image path");
+	app.add_option("--disk2,--drive2", Disk2OverridePath, "Override slot 6 drive 2 disk image path");
 	app.add_option("--paste-file", pasteFileArg, "Paste script file path");
 	app.add_option("--record-video", recordVideoPath, "Record emulator video/audio to a Matroska FFV1 file");
 	app.add_option("--guest-core-dump", GuestCoreDumpFile, "Write guest core dump to file");
@@ -599,6 +649,12 @@ int main( int args, char** argv )
 	EmuConfig emuConfig;
 	if( !loadEmuConfig(EmuConfigPath, emuConfig) ) {
 		cerr << "Unable to load .emu config: \"" << EmuConfigPath << "\"\n";
+		return 1;
+	}
+	applyDiskOverrides(emuConfig, Disk1OverridePath, Disk2OverridePath);
+	string propertyOverrideError;
+	if( !applyPropertyOverrides(emuConfig, propertyOverrideArgs, propertyOverrideError) ) {
+		cerr << propertyOverrideError << "\n";
 		return 1;
 	}
 	string romPath;

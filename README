@@ -4,10 +4,8 @@
 
 To run the application, activate the "ever2e" executable.
 
-Emulated disk support is not yet implemented, but pre-generated files can be
-loaded into the emulator at startup by setting "ever2e.exe" as the default
-application used to open ".bas" files and then double clicking on the desired
-program.
+Disk II image paths can be configured in `.emu` profiles or overridden at
+startup with `--disk1` and `--disk2`.
 
 A few sample programs are included with the application.
 
@@ -64,6 +62,7 @@ Direct binary usage (required positional `.emu` config):
     ./build/macos/ever2e release/Apple2eNoSlots.emu
     ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
     ./build/macos/ever2e release/Apple2eNoSlots.emu --rom-file /absolute/path/to/APPLE2E.ROM --headless --steps 1000
+    ./build/macos/ever2e release/Apple2eNoSlots.emu --disk1 local/disk-smoke/disks/custom-p6-boot.nib --headless --steps 1000
 
 Recording video/audio:
 
@@ -96,6 +95,12 @@ Notes:
 - ROM loading follows `binary.file` from the `.emu` config (relative paths are
   resolved from the `.emu` file directory).
 - `--rom-file` overrides `.emu` `binary.file` for a run.
+- `--set name=value` overrides any `.emu` property after the profile is loaded.
+  It may be repeated; `--set-property` is an alias.
+- `--disk1` and `--disk2` override slot 6 Disk II drive 1/2 image paths for a
+  run and enable the slot 6 controller. `--drive1` and `--drive2` are aliases.
+  These flags do not override the slot 6 ROM; use a profile with the desired
+  slot ROM when testing bootable disks.
 - Scripts accept `ROM_FILE=/absolute/path/to/APPLE2E.ROM` and pass it through.
 - Scripts also support `ROM_GENERATED=loop` to generate a temporary zero-padded
   16KB ROM that loops forever at `$C000` (not committed to repo).
