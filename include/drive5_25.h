@@ -79,7 +79,7 @@ class Floppy525Controller : public PeripheralCard16bit
 
 public:
 	Floppy525Controller( int slot, const std::string& drive1Path, const std::string& drive2Path,
-			const std::string& romPath = std::string() );
+			const std::string& romPath );
 	~Floppy525Controller() override;
 
 	void putMem16b( Uint8 offset, Uint8 byte ) override;

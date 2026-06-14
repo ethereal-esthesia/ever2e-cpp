@@ -1,8 +1,11 @@
 #include "test_harness.h"
 
+#include <filesystem>
+#include <fstream>
 #include <limits.h>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include "memory128k.h"
 #include "mon560x192.h"
@@ -41,6 +44,24 @@ private:
 };
 
 } // namespace
+
+static std::filesystem::path writeGeneratedSlotRom()
+{
+    const std::filesystem::path path =
+            std::filesystem::temp_directory_path() /
+            ("ever2e_slot6_window_rom_" + std::to_string(getpid()) + ".rom");
+    std::vector<Uint8> rom(256, 0xea);
+    rom[0x00] = 0xa2;
+    rom[0x01] = 0x20;
+    rom[0x02] = 0xa0;
+    rom[0xc4] = 0xa4;
+    rom[0xd0] = 0x59;
+    rom[0xf0] = 0x3d;
+    std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
+    E2TEST_ASSERT_TRUE(out.is_open());
+    out.write(reinterpret_cast<const char*>(rom.data()), (std::streamsize)rom.size());
+    return path;
+}
 
 E2TEST_CASE(peripheralWindowReadFallsBackToFloatingBusWhenSlotCardMissing)
 {
@@ -182,7 +203,8 @@ E2TEST_CASE(floppy525ControllerExposesDiskIiSlotRom)
     Monitor560x192 monitor(&surface, &memory);
     memory.putPeripheral(NULL, &monitor, NULL, NULL);
 
-    Floppy525Controller slot6(6, "", "");
+    const std::filesystem::path romPath = writeGeneratedSlotRom();
+    Floppy525Controller slot6(6, "", "", romPath.string());
     memory.putSlot(6, &slot6);
     memory.resetSwitch(Memory128k::_INTCXROM);
 
@@ -196,4 +218,6 @@ E2TEST_CASE(floppy525ControllerExposesDiskIiSlotRom)
     // Slot I/O switches should dispatch without corrupting the Cn00 ROM window.
     memory.putMem(0xC0E9, 0x00);
     E2TEST_ASSERT_EQ(0xA2, static_cast<int>(memory.getMem(0xC600)));
+
+    std::filesystem::remove(romPath);
 }

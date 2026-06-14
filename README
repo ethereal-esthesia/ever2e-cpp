@@ -100,8 +100,8 @@ Notes:
   `~` / `~/...` expansion.
 - `--disk1` and `--disk2` override slot 6 Disk II drive 1/2 image paths for a
   run and enable the slot 6 controller. `--drive1` and `--drive2` are aliases.
-  These flags do not override the slot 6 ROM; use a profile with the desired
-  slot ROM when testing bootable disks.
+  A 256-byte slot ROM is still required via `machine.layout.slot.6.rom.file`;
+  these flags do not provide or override one.
 - Scripts accept `ROM_FILE=/absolute/path/to/APPLE2E.ROM` and pass it through.
 - Scripts also support `ROM_GENERATED=loop` to generate a temporary zero-padded
   16KB ROM that loops forever at `$C000` (not committed to repo).

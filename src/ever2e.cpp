@@ -33,6 +33,7 @@
 #include <cctype>
 #include <map>
 #include <algorithm>
+#include <exception>
 #include <filesystem>
 #include "CLI.hpp"
 #include "eventloop.h"
@@ -253,7 +254,7 @@ bool applyPropertyOverrides( EmuConfig& cfg, const vector<string>& assignments, 
 	return true;
 }
 
-void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<PeripheralCard16bit*>& ownedCards )
+bool installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<PeripheralCard16bit*>& ownedCards )
 {
 	for( int slot = 1; slot<=7; slot++ ) {
 		string key = string("machine.layout.slot.") + char('0' + slot);
@@ -296,8 +297,19 @@ void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<Peri
 			string romPath;
 			if( rom!=cfg.properties.end() )
 				romPath = resolveEmuRelativePathWithParentFallback(cfg, trimString(rom->second));
+			if( romPath.empty() ) {
+				cerr << "Slot " << slot << " Disk II ROM is required: " << key << ".rom.file\n";
+				return false;
+			}
 
-			Floppy525Controller* card = new Floppy525Controller(slot, drive1, drive2, romPath);
+			Floppy525Controller* card = NULL;
+			try {
+				card = new Floppy525Controller(slot, drive1, drive2, romPath);
+			}
+			catch( const exception& e ) {
+				cerr << "Unable to load slot " << slot << " Disk II controller: " << e.what() << "\n";
+				return false;
+			}
 			ownedCards.push_back(card);
 			emulator->memory->putSlot(slot, card);
 			cout << "Slot " << slot << ": " << className;
@@ -316,6 +328,7 @@ void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<Peri
 			emulator->memory->putSlot(slot, NULL);
 		}
 	}
+	return true;
 }
 
 bool parseHexWordArg( const string& raw, Uint16& out )
@@ -681,7 +694,8 @@ int main( int args, char** argv )
 	if( !RomFileOverridePath.empty() )
 		romPath = resolveCliPath(RomFileOverridePath);
 	EventLoop emulator(SelectedCpuProfile, romPath, HeadlessMode);
-	installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
+	if( !installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards) )
+		return 1;
 	if( !recordVideoPath.empty() && !emulator.startRecording(recordVideoPath) )
 		return 1;
 	emulator.memory->setDeterministicOpenBusHigh(DeterministicOpenBus);
