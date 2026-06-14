@@ -7,6 +7,7 @@
 #include "memory128k.h"
 #include "mon560x192.h"
 #include "pixel.h"
+#include "drive5_25.h"
 
 namespace {
 
@@ -169,4 +170,27 @@ E2TEST_CASE(expansionWindowResetByCfffFallsBackToInternalRom)
     (void) memory.getMem(0xCFFF); // Reset expansion-slot window.
     const Uint8 afterReset = memory.getMem(0xC800);
     E2TEST_ASSERT_EQ(static_cast<int>(expectedInternal), static_cast<int>(afterReset));
+}
+
+E2TEST_CASE(floppy525ControllerExposesDiskIiSlotRom)
+{
+    ScopedCwd cwd("release");
+    E2TEST_ASSERT_TRUE(cwd.active());
+
+    PixelSurface surface(560, 384, 32);
+    Memory128k memory;
+    Monitor560x192 monitor(&surface, &memory);
+    memory.putPeripheral(NULL, &monitor, NULL, NULL);
+
+    Floppy525Controller slot6(6, "", "");
+    memory.putSlot(6, &slot6);
+    memory.resetSwitch(Memory128k::_INTCXROM);
+
+    E2TEST_ASSERT_EQ(0xA2, static_cast<int>(memory.getMem(0xC600)));
+    E2TEST_ASSERT_EQ(0x20, static_cast<int>(memory.getMem(0xC601)));
+    E2TEST_ASSERT_EQ(0xA0, static_cast<int>(memory.getMem(0xC602)));
+
+    // Slot I/O switches should dispatch without corrupting the Cn00 ROM window.
+    memory.putMem(0xC0E9, 0x00);
+    E2TEST_ASSERT_EQ(0xA2, static_cast<int>(memory.getMem(0xC600)));
 }

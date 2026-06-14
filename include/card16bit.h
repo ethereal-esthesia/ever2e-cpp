@@ -43,13 +43,16 @@ class PeripheralCard16bit
 public:
 
 	PeripheralCard16bit();
+	virtual ~PeripheralCard16bit();
 	
-	void putMem16b( Uint8 offset, Uint8 byte );
-	Uint8 getMem16b( Uint8 offset );
+	virtual void putMem16b( Uint8 offset, Uint8 byte );
+	virtual Uint8 getMem16b( Uint8 offset );
 	
-	Uint8 getMem256b( Uint8 offset );
+	virtual Uint8 getMem256b( Uint8 offset );
 	
-	Uint8 getMem2k( Uint16 offset );
+	virtual Uint8 getMem2k( Uint16 offset );
+
+	virtual void cycle();
 
 	void setSlotPattern( Uint8 value );
 

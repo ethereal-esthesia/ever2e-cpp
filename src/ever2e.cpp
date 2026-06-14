@@ -36,6 +36,7 @@
 #include <filesystem>
 #include "CLI.hpp"
 #include "eventloop.h"
+#include "drive5_25.h"
 
 
 using namespace std;
@@ -173,6 +174,21 @@ string resolveEmuRelativePath( const EmuConfig& cfg, const string& fileName )
 	return (base / fileName).lexically_normal().string();
 }
 
+string resolveEmuRelativePathWithParentFallback( const EmuConfig& cfg, const string& fileName )
+{
+	string resolved = resolveEmuRelativePath(cfg, fileName);
+	if( resolved.empty() || std::filesystem::exists(resolved) || isAbsolutePath(fileName) )
+		return resolved;
+
+	std::filesystem::path base = dirnameOfPath(cfg.sourcePath);
+	if( !base.is_absolute() )
+		base = std::filesystem::absolute(base);
+	std::filesystem::path parentCandidate = (base.parent_path() / fileName).lexically_normal();
+	if( std::filesystem::exists(parentCandidate) )
+		return parentCandidate.string();
+	return resolved;
+}
+
 void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<PeripheralCard16bit*>& ownedCards )
 {
 	for( int slot = 1; slot<=7; slot++ ) {
@@ -202,6 +218,26 @@ void installSlotsFromEmu( EventLoop* emulator, const EmuConfig& cfg, vector<Peri
 			emulator->memory->putSlot(slot, card);
 			cout << "Slot " << slot << ": " << className << " pattern=0x"
 				 << hex << uppercase << setw(2) << setfill('0') << (int)pattern << dec << "\n";
+		}
+		else if( className=="drive.floppy525.Floppy525Controller" ) {
+			string drive1;
+			string drive2;
+			map<string, string>::const_iterator d1 = cfg.properties.find(key + ".drive.1.file");
+			map<string, string>::const_iterator d2 = cfg.properties.find(key + ".drive.2.file");
+			if( d1!=cfg.properties.end() )
+				drive1 = resolveEmuRelativePathWithParentFallback(cfg, trimString(d1->second));
+			if( d2!=cfg.properties.end() )
+				drive2 = resolveEmuRelativePathWithParentFallback(cfg, trimString(d2->second));
+
+			Floppy525Controller* card = new Floppy525Controller(slot, drive1, drive2);
+			ownedCards.push_back(card);
+			emulator->memory->putSlot(slot, card);
+			cout << "Slot " << slot << ": " << className;
+			if( !drive1.empty() )
+				cout << " drive1=" << drive1;
+			if( !drive2.empty() )
+				cout << " drive2=" << drive2;
+			cout << "\n";
 		}
 		else {
 			// JVM config compatibility: accept keys but keep slot empty when unsupported.

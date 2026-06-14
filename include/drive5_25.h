@@ -28,7 +28,63 @@
 #define _DRIVE5_25_H_
 
 
-#include "SDL.h"
+#include <array>
+#include <string>
+#include <vector>
+#include "card16bit.h"
+
+
+class Floppy525Controller : public PeripheralCard16bit
+{
+	static const int DRIVE_COUNT = 2;
+	static const int TRACK_TOTAL = 35;
+	static const int SECTOR_TOTAL = 16;
+	static const int SECTOR_BYTES = 416;
+	static const int TRACK_BYTES = SECTOR_BYTES*SECTOR_TOTAL;
+	static const int PHASE0_MASK = 0x01;
+	static const int PHASE1_MASK = 0x02;
+	static const int PHASE2_MASK = 0x04;
+	static const int PHASE3_MASK = 0x08;
+
+	int slot;
+	std::array<std::string, DRIVE_COUNT> fileName;
+	std::array<bool, DRIVE_COUNT> readOnly;
+	std::array<int, DRIVE_COUNT> phase;
+	std::array<int, DRIVE_COUNT> headHalfTrack;
+	std::array<int, DRIVE_COUNT> headSectorByte;
+	std::array<std::vector<Uint8>, DRIVE_COUNT> diskImage;
+
+	int dataRegister;
+	int writeRequestRegister;
+	int writeRegister;
+	int cycleDelay;
+	int cyclePeriod;
+	bool driveWrite;
+	bool driveOn;
+	bool debugLog;
+	int driveSelect;
+	int driveOffRequest;
+	bool writeOn;
+
+	void loadRom();
+	void loadImage( int drive );
+	void saveImage( int drive );
+	void ensureImageLoaded( int drive );
+	void moveHead();
+	void setDrive( int drive );
+	int getDrive() const;
+	void startDrive();
+	void killDrive();
+	Uint8 accessSwitch( Uint8 offset, bool isWrite, Uint8 value );
+
+public:
+	Floppy525Controller( int slot, const std::string& drive1Path, const std::string& drive2Path );
+	~Floppy525Controller() override;
+
+	void putMem16b( Uint8 offset, Uint8 byte ) override;
+	Uint8 getMem16b( Uint8 offset ) override;
+	void cycle() override;
+};
 
 
 #endif  // _DRIVE5_25_H_

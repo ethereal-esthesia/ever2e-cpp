@@ -900,7 +900,7 @@ void Memory128k::_writeIo( Uint16 address, Uint8 byte )
 				// Mirror read/write soft-switch shape in slot windows for installed cards.
 				int slot = (address - 0xc080) >> 4;
 				if( slot>=1 && slot<=7 && slotCard[slot] != NULL )
-					(void) slotCard[slot]->getMem16b(address & 0x0f);
+					slotCard[slot]->putMem16b(address & 0x0f, byte);
 				break;
 			}
 			// Possibly a read / write switch
@@ -1353,6 +1353,10 @@ void Memory128k::cycle()
 {
 	assert( accessCount <= 1 );
 	accessCount = 0;
+	for( int slot = 1; slot<=7; slot++ ) {
+		if( slotCard[slot]!=NULL )
+			slotCard[slot]->cycle();
+	}
 }
 
 void Memory128k::store( SaveState &state )

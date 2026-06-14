@@ -11,6 +11,10 @@ PeripheralCard16bit::PeripheralCard16bit()
 	idTag = "card16";
 }
 
+PeripheralCard16bit::~PeripheralCard16bit()
+{
+}
+
 void PeripheralCard16bit::putMem16b( Uint8 offset, Uint8 byte )
 {
 	assert( offset<16 );
@@ -32,6 +36,10 @@ Uint8 PeripheralCard16bit::getMem2k( Uint16 offset )
 {
 	assert( offset<2048 );
 	return expRom2k[offset];
+}
+
+void PeripheralCard16bit::cycle()
+{
 }
 
 void PeripheralCard16bit::setSlotPattern( Uint8 value )
