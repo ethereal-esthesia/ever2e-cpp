@@ -101,9 +101,23 @@ bool hasCaseInsensitiveSuffix( const string& value, const string& suffix )
 	return true;
 }
 
+string expandHomePath( const string& path )
+{
+	if( path.empty() || path[0]!='~' )
+		return path;
+	if( path.size()>1 && path[1]!='/' && path[1]!='\\' )
+		return path;
+	const char* home = getenv("HOME");
+	if( home==NULL || home[0]=='\0' )
+		home = getenv("USERPROFILE");
+	if( home==NULL || home[0]=='\0' )
+		return path;
+	return path.size()==1 ? string(home) : string(home) + path.substr(1);
+}
+
 bool loadEmuConfig( const string& rawPath, EmuConfig& out )
 {
-	string path = rawPath;
+	string path = expandHomePath(rawPath);
 	if( !hasCaseInsensitiveSuffix(path, ".emu") )
 		path += ".emu";
 	ifstream in(path.c_str(), ios::in);
@@ -167,26 +181,28 @@ bool isAbsolutePath( const string& path )
 
 string resolveEmuRelativePath( const EmuConfig& cfg, const string& fileName )
 {
-	if( fileName.empty() )
-		return fileName;
-	if( isAbsolutePath(fileName) )
-		return fileName;
+	string expandedFileName = expandHomePath(fileName);
+	if( expandedFileName.empty() )
+		return expandedFileName;
+	if( isAbsolutePath(expandedFileName) )
+		return std::filesystem::path(expandedFileName).lexically_normal().string();
 	std::filesystem::path base = dirnameOfPath(cfg.sourcePath);
 	if( !base.is_absolute() )
 		base = std::filesystem::absolute(base);
-	return (base / fileName).lexically_normal().string();
+	return (base / expandedFileName).lexically_normal().string();
 }
 
 string resolveEmuRelativePathWithParentFallback( const EmuConfig& cfg, const string& fileName )
 {
 	string resolved = resolveEmuRelativePath(cfg, fileName);
-	if( resolved.empty() || std::filesystem::exists(resolved) || isAbsolutePath(fileName) )
+	string expandedFileName = expandHomePath(fileName);
+	if( resolved.empty() || std::filesystem::exists(resolved) || isAbsolutePath(expandedFileName) )
 		return resolved;
 
 	std::filesystem::path base = dirnameOfPath(cfg.sourcePath);
 	if( !base.is_absolute() )
 		base = std::filesystem::absolute(base);
-	std::filesystem::path parentCandidate = (base.parent_path() / fileName).lexically_normal();
+	std::filesystem::path parentCandidate = (base.parent_path() / expandedFileName).lexically_normal();
 	if( std::filesystem::exists(parentCandidate) )
 		return parentCandidate.string();
 	return resolved;
@@ -194,11 +210,12 @@ string resolveEmuRelativePathWithParentFallback( const EmuConfig& cfg, const str
 
 string resolveCliPath( const string& fileName )
 {
-	if( fileName.empty() )
-		return fileName;
-	if( isAbsolutePath(fileName) )
-		return std::filesystem::path(fileName).lexically_normal().string();
-	return std::filesystem::absolute(std::filesystem::path(fileName)).lexically_normal().string();
+	string expandedFileName = expandHomePath(fileName);
+	if( expandedFileName.empty() )
+		return expandedFileName;
+	if( isAbsolutePath(expandedFileName) )
+		return std::filesystem::path(expandedFileName).lexically_normal().string();
+	return std::filesystem::absolute(std::filesystem::path(expandedFileName)).lexically_normal().string();
 }
 
 void applyDiskOverrides( EmuConfig& cfg, const string& disk1, const string& disk2 )
@@ -662,7 +679,7 @@ int main( int args, char** argv )
 	if( binIt!=emuConfig.properties.end() && !trimString(binIt->second).empty() )
 		romPath = resolveEmuRelativePath(emuConfig, trimString(binIt->second));
 	if( !RomFileOverridePath.empty() )
-		romPath = RomFileOverridePath;
+		romPath = resolveCliPath(RomFileOverridePath);
 	EventLoop emulator(SelectedCpuProfile, romPath, HeadlessMode);
 	installSlotsFromEmu(&emulator, emuConfig, ownedSlotCards);
 	if( !recordVideoPath.empty() && !emulator.startRecording(recordVideoPath) )

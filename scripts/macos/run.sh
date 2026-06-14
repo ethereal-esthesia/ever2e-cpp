@@ -26,6 +26,12 @@ else
   shift
 fi
 
+if [[ "$EMU_ARG" == "~" ]]; then
+  EMU_ARG="$HOME"
+elif [[ "$EMU_ARG" == "~/"* ]]; then
+  EMU_ARG="$HOME/${EMU_ARG#"~/"}"
+fi
+
 # Convenience path resolution:
 # - bare names like "Apple2eNoSlots.emu" resolve to release/<name>
 # - relative paths that do not exist from repo root fallback to release/<path>
