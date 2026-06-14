@@ -36,6 +36,7 @@ Platform presets:
 
 CI tiers (GitHub Actions):
 - Smoke: `./scripts/macos/run_smoke.sh`
+- Clean Disk II P6 boot smoke: `./scripts/macos/run_p6_boot_smoke.sh`
 - Main tests: `./scripts/macos/run_main_tests.sh`
 
 `ever2e` requires a positional `.emu` path:
@@ -52,6 +53,7 @@ From the repository root:
     ./scripts/macos/build.sh
     ./scripts/macos/run.sh
     ./scripts/macos/run_smoke.sh
+    ./scripts/macos/run_p6_boot_smoke.sh
     ./scripts/macos/run_trace_baseline.sh
     ./scripts/macos/run_main_tests.sh
     ./scripts/macos/run_microcode_tests.sh
@@ -103,6 +105,11 @@ Notes:
   - default `ROM_GENERATED=loop` (temporary 16KB loop ROM, not committed)
   - default `STEPS=12`
   - default final PC check `REQUIRE_HALT_PC=0xC000`
+- `run_p6_boot_smoke.sh` is a proprietary-free Disk II smoke check:
+  - generates a temporary clean slot-6 P6 ROM
+  - generates a temporary custom NIB boot disk
+  - generates a temporary 16KB wrapper ROM whose reset vector enters `$C600`
+  - halts only if the generated payload reaches `$080A`
 - `run_trace_baseline.sh` is a short deterministic trace parity check:
   - generates a temporary 16KB loop ROM on the fly (not committed)
   - writes fresh run trace to `build/macos/trace_loop_actual.csv`
