@@ -216,10 +216,12 @@ void Floppy525Controller::setDrive( int drive )
 		return;
 	if( driveOn ) {
 		killDrive();
+		driveOffRequest = -1;
 		driveSelect = nextDrive;
 		startDrive();
 	}
 	else {
+		driveOffRequest = -1;
 		driveSelect = nextDrive;
 	}
 }
@@ -244,6 +246,7 @@ void Floppy525Controller::killDrive()
 	if( !driveOn )
 		return;
 	driveOn = false;
+	driveOffRequest = -1;
 	cout << "Slot " << slot << ", drive " << getDrive() << " stopped\n";
 	for( int drive = 0; drive<DRIVE_COUNT; drive++ ) {
 		if( dirty[drive] ) {
