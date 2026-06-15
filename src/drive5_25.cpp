@@ -68,7 +68,7 @@ Floppy525Controller::Floppy525Controller( int slotNumber, const string& drive1Pa
 	  writeRequestRegister(0),
 	  writeRegister(-1),
 	  cycleDelay(0),
-	  cyclePeriod(32),
+	  cyclePeriod(31),
 	  driveWrite(false),
 	  driveOn(false),
 	  debugLog(false),
