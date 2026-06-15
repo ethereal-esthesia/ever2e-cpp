@@ -40,6 +40,14 @@ void writeBlankNib(const std::filesystem::path& path)
     out.write(reinterpret_cast<const char*>(image.data()), (std::streamsize)image.size());
 }
 
+void writeFilledNib(const std::filesystem::path& path, Uint8 fill)
+{
+    std::vector<Uint8> image(kTrackTotal * kTrackBytes, fill);
+    std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
+    E2TEST_ASSERT_TRUE(out.is_open());
+    out.write(reinterpret_cast<const char*>(image.data()), (std::streamsize)image.size());
+}
+
 void writeTestSlotRom(const std::filesystem::path& path)
 {
     std::vector<Uint8> rom(kSlotRomSize, 0xea);
@@ -145,5 +153,52 @@ E2TEST_CASE(floppy525ControllerWritesDeterministicRandomBytes)
                 static_cast<int>(image[kFirstWrittenByteOffset + i]));
 
     std::filesystem::remove(path);
+    std::filesystem::remove(romPath);
+}
+
+E2TEST_CASE(floppy525ControllerPendingWriteStaysWithSelectedDrive)
+{
+    ScopedEnvVar cyclePeriod("EVER2E_DISKII_CYCLE_PERIOD",
+            std::to_string(kDiskByteCyclePeriod));
+    const std::filesystem::path drive1Path =
+            std::filesystem::temp_directory_path() /
+            ("ever2e_floppy525_drive1_" + std::to_string(getpid()) + ".nib");
+    const std::filesystem::path drive2Path =
+            std::filesystem::temp_directory_path() /
+            ("ever2e_floppy525_drive2_" + std::to_string(getpid()) + ".nib");
+    const std::filesystem::path romPath =
+            std::filesystem::temp_directory_path() /
+            ("ever2e_floppy525_rom_switch_" + std::to_string(getpid()) + ".rom");
+
+    writeFilledNib(drive1Path, 0x11);
+    writeFilledNib(drive2Path, 0xff);
+    writeTestSlotRom(romPath);
+
+    {
+        Floppy525Controller controller(6, drive1Path.string(), drive2Path.string(), romPath.string());
+        controller.putMem16b(0x0b, 0x00); // select drive 2
+        controller.putMem16b(0x09, 0x00); // drive on
+        controller.putMem16b(0x0f, 0x00); // write mode
+        controller.putMem16b(0x0d, 0x5a);
+        controller.putMem16b(0x0c, 0x00); // queue write for drive 2
+        controller.putMem16b(0x0a, 0x00); // switch back to drive 1 before the byte lands
+        advanceDiskByte(controller);
+
+        controller.putMem16b(0x0b, 0x00); // reselect drive 2 so its dirty image is flushed
+        controller.putMem16b(0x0e, 0x00); // read mode
+        controller.putMem16b(0x08, 0x00); // drive off
+        for( int i = 0; i<((0x40000 >> 3) + 2); i++ )
+            advanceDiskByte(controller);
+    }
+
+    const std::vector<Uint8> drive1 = readFile(drive1Path);
+    const std::vector<Uint8> drive2 = readFile(drive2Path);
+    E2TEST_ASSERT_EQ(kTrackTotal * kTrackBytes, static_cast<int>(drive1.size()));
+    E2TEST_ASSERT_EQ(kTrackTotal * kTrackBytes, static_cast<int>(drive2.size()));
+    E2TEST_ASSERT_EQ(0x11, static_cast<int>(drive1[kFirstWrittenByteOffset]));
+    E2TEST_ASSERT_EQ(0x5a, static_cast<int>(drive2[kFirstWrittenByteOffset]));
+
+    std::filesystem::remove(drive1Path);
+    std::filesystem::remove(drive2Path);
     std::filesystem::remove(romPath);
 }

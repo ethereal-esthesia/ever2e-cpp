@@ -67,9 +67,11 @@ Floppy525Controller::Floppy525Controller( int slotNumber, const string& drive1Pa
 	  dataRegister(0),
 	  writeRequestRegister(0),
 	  writeRegister(-1),
+	  writeDrive(-1),
+	  writeTrack(-1),
+	  writeByte(-1),
 	  cycleDelay(0),
 	  cyclePeriod(31),
-	  driveWrite(false),
 	  driveOn(false),
 	  debugLog(false),
 	  driveSelect(0),
@@ -79,6 +81,7 @@ Floppy525Controller::Floppy525Controller( int slotNumber, const string& drive1Pa
 	fileName[0] = drive1Path;
 	fileName[1] = drive2Path;
 	readOnly.fill(false);
+	dirty.fill(false);
 	phase.fill(0);
 	headHalfTrack.fill(69);
 	headSectorByte.fill(0);
@@ -242,9 +245,12 @@ void Floppy525Controller::killDrive()
 		return;
 	driveOn = false;
 	cout << "Slot " << slot << ", drive " << getDrive() << " stopped\n";
-	if( driveWrite )
-		saveImage(driveSelect);
-	driveWrite = false;
+	for( int drive = 0; drive<DRIVE_COUNT; drive++ ) {
+		if( dirty[drive] ) {
+			saveImage(drive);
+			dirty[drive] = false;
+		}
+	}
 }
 
 Uint8 Floppy525Controller::accessSwitch( Uint8 offset, bool isWrite, Uint8 value )
@@ -254,8 +260,6 @@ Uint8 Floppy525Controller::accessSwitch( Uint8 offset, bool isWrite, Uint8 value
 
 	if( isWrite && (offset==0x0d || offset==0x0f) && driveOn )
 		writeRequestRegister = value;
-	if( isWrite )
-		driveWrite = true;
 
 	switch( offset & 0x0f ) {
 		case 0x00:
@@ -321,8 +325,14 @@ Uint8 Floppy525Controller::accessSwitch( Uint8 offset, bool isWrite, Uint8 value
 			setDrive(2);
 			break;
 		case 0x0c:
-			if( writeOn )
+			if( writeOn && driveOn && !diskImage[driveSelect].empty() ) {
 				writeRegister = writeRequestRegister;
+				writeDrive = driveSelect;
+				writeTrack = headHalfTrack[driveSelect] >> 1;
+				writeByte = headSectorByte[driveSelect] + 1;
+				if( writeByte>=TRACK_BYTES )
+					writeByte = 0;
+			}
 			break;
 		case 0x0d:
 			break;
@@ -372,11 +382,18 @@ void Floppy525Controller::cycle()
 		}
 	}
 
-	if( writeRegister>=0 && !diskImage[driveSelect].empty() ) {
-		const int track = headHalfTrack[driveSelect] >> 1;
-		const size_t index = (size_t) track*TRACK_BYTES + (size_t) headSectorByte[driveSelect];
-		diskImage[driveSelect][index] = (Uint8) writeRegister;
+	if( writeRegister>=0 ) {
+		if( writeDrive>=0 && writeDrive<DRIVE_COUNT && !diskImage[writeDrive].empty() ) {
+			const size_t index = (size_t) writeTrack*TRACK_BYTES + (size_t) writeByte;
+			if( index<diskImage[writeDrive].size() ) {
+				diskImage[writeDrive][index] = (Uint8) writeRegister;
+				dirty[writeDrive] = true;
+			}
+		}
 		writeRegister = -1;
+		writeDrive = -1;
+		writeTrack = -1;
+		writeByte = -1;
 	}
 
 	if( driveOffRequest>=0 && driveOffRequest++==(0x40000>>3) ) {

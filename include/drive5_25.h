@@ -57,14 +57,17 @@ class Floppy525Controller : public PeripheralCard16bit
 	int dataRegister;
 	int writeRequestRegister;
 	int writeRegister;
+	int writeDrive;
+	int writeTrack;
+	int writeByte;
 	int cycleDelay;
 	int cyclePeriod;
-	bool driveWrite;
 	bool driveOn;
 	bool debugLog;
 	int driveSelect;
 	int driveOffRequest;
 	bool writeOn;
+	std::array<bool, DRIVE_COUNT> dirty;
 
 	void loadRom( const std::string& romPath );
 	void loadImage( int drive );
