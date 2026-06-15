@@ -190,15 +190,6 @@ behavior.
 The color palette is slightly off. Greys, white, and 3-bit pastel colors should
 all have twice the intensity of 1 and 2-bit colors.
 
-If you press escape to exit F1 menu, first character of input is not deleted
-for ever2e testinput.txt file. If you press F1, it is. Extra space inserted
-for now as temporary solution.
-
-Should put a freeze on keyboard input while automated input is being processed.
-
-The following crashes the program: F1 toggle while executing BASIC program.
-This is likely because the CPU state is not yet saved properly.
-
 Add save state
 
 Working directory is lost when ever2e is indirectly called, causing the icon
@@ -206,8 +197,6 @@ to disappear and other potential side-effects. This can be fixed by reading
 arg[0] and determining working directory (default "./").
 
 Minor - Open and closed apple keys can not be pressed at the same time.
-
-Minor - Initial state of caps-lock key is unknown.
 
 Minor - CPU speed modifies video sync timing applications - should draw
 every nth frame n times faster to avoid this problem. Use "test_split.bas"
@@ -221,3 +210,5 @@ stable between toggles. More research has also shown that the toggle air-
 pressure should be higher when switching from the relaxed to tense diaphragm
 state. The air-pressure physics calculation may be slightly off as well. It is
 currently modeled after spring physics.
+
+Disk II Interface - currently does not report write errors
