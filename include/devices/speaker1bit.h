@@ -34,7 +34,7 @@
 #include <cstdlib>
 #include <cassert>
 #include "SDL.h"
-#include "cpu65c02.h"
+#include "cpu/cpu65c02.h"
 
 
 #define SPEAKER_STATIC

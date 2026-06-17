@@ -38,7 +38,7 @@ endif()
 file(GLOB_RECURSE EVER2E_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 file(GLOB EVER2E_TEST_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/microcode/*.cpp")
 
-list(REMOVE_ITEM EVER2E_SRC "${CMAKE_SOURCE_DIR}/src/ever2e.cpp")
+list(REMOVE_ITEM EVER2E_SRC "${CMAKE_SOURCE_DIR}/src/app/ever2e.cpp")
 
 add_library(ever2e_core STATIC ${EVER2E_SRC})
 target_include_directories(ever2e_core PUBLIC "${CMAKE_SOURCE_DIR}/include")
@@ -54,7 +54,7 @@ else()
   target_compile_options(ever2e_core PRIVATE -Wall -Wextra)
 endif()
 
-add_executable(ever2e "${CMAKE_SOURCE_DIR}/src/ever2e.cpp")
+add_executable(ever2e "${CMAKE_SOURCE_DIR}/src/app/ever2e.cpp")
 target_include_directories(ever2e PRIVATE "${CMAKE_SOURCE_DIR}/third_party/CLI/include")
 target_link_libraries(ever2e PRIVATE ever2e_core)
 

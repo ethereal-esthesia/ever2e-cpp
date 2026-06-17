@@ -24,7 +24,7 @@
  *************************************************************************/
 
 
-#include "savestate.h"
+#include "memory/savestate.h"
 
 
 using namespace std;

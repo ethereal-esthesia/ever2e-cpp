@@ -4,12 +4,12 @@
 #include <string>
 #include <unistd.h>
 
-#include "cpu65c02.h"
-#include "keyboard2e.h"
-#include "memory128k.h"
-#include "mon560x192.h"
-#include "pixel.h"
-#include "speaker1bit.h"
+#include "cpu/cpu65c02.h"
+#include "devices/keyboard2e.h"
+#include "memory/memory128k.h"
+#include "video/mon560x192.h"
+#include "video/pixel.h"
+#include "devices/speaker1bit.h"
 
 namespace {
 

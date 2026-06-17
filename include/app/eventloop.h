@@ -33,18 +33,18 @@
 #include <deque>
 #include <map>
 #include "SDL.h"
-#include "manager.h"
-#include "sound.h"
-#include "pixel.h"
-#include "cpu65c02.h"
-#include "mon560x192.h"
-#include "memory128k.h"
-#include "speaker1bit.h"
-#include "keyboard2e.h"
-#include "keytrans2e.h"
-#include "hostkey.h"
-#include "savestate.h"
-#include "recorder.h"
+#include "platform/manager.h"
+#include "platform/sound.h"
+#include "video/pixel.h"
+#include "cpu/cpu65c02.h"
+#include "video/mon560x192.h"
+#include "memory/memory128k.h"
+#include "devices/speaker1bit.h"
+#include "devices/keyboard2e.h"
+#include "devices/keytrans2e.h"
+#include "platform/hostkey.h"
+#include "memory/savestate.h"
+#include "platform/recorder.h"
 
 // Uncomment these to view speed stat changes (this test maxes out the CPU cycles)
 //#define _BENCHMARK_

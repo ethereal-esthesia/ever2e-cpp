@@ -24,7 +24,7 @@
  *************************************************************************/
 
  
-#include "hostkey.h"
+#include "platform/hostkey.h"
 
 
 HostKeyboard::HostKeyboard()

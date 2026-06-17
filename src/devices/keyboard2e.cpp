@@ -24,7 +24,7 @@
  *************************************************************************/
  
 
-#include "keyboard2e.h"
+#include "devices/keyboard2e.h"
 
 
 using namespace std;

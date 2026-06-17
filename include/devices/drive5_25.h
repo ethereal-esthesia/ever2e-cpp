@@ -31,7 +31,7 @@
 #include <array>
 #include <string>
 #include <vector>
-#include "card16bit.h"
+#include "devices/card16bit.h"
 
 
 class Floppy525Controller : public PeripheralCard16bit

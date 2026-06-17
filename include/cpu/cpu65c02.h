@@ -36,9 +36,9 @@
 #include <cmath>
 #include <cstdint>
 #include "SDL.h"
-#include "mon560x192.h"
-#include "memory128k.h"
-#include "savestate.h"
+#include "video/mon560x192.h"
+#include "memory/memory128k.h"
+#include "memory/savestate.h"
 
 
 #define _CPU_TEST_OUTPUT	

@@ -27,10 +27,10 @@
 #ifndef _MON560x192_H_
 #define _MON560x192_H_
 
-#include "pixel.h"
-#include "colorconv.h"
-#include "memory128k.h"
-#include "savestate.h"
+#include "video/pixel.h"
+#include "video/colorconv.h"
+#include "memory/memory128k.h"
+#include "memory/savestate.h"
 
 
 enum MonitorType { MONO_MONITOR, GREEN_MONITOR, COLOR_MONITOR };

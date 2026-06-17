@@ -24,7 +24,7 @@
  *************************************************************************/
 
 
-#include "sound.h"
+#include "platform/sound.h"
 
 
 using namespace std;

@@ -36,8 +36,8 @@
 #include <exception>
 #include <filesystem>
 #include "CLI.hpp"
-#include "eventloop.h"
-#include "drive5_25.h"
+#include "app/eventloop.h"
+#include "devices/drive5_25.h"
 
 
 using namespace std;

@@ -4,7 +4,7 @@
 #include <array>
 #include <cstdint>
 
-#include "cpu65c02.h"
+#include "cpu/cpu65c02.h"
 
 class Cpu65c02CmdProfile {
 public:

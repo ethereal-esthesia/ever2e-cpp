@@ -24,7 +24,7 @@
  *************************************************************************/
  
 
-#include "memory128k.h"
+#include "memory/memory128k.h"
 
 
 /// Turn this into a giant switch statment for significant speedups

@@ -33,8 +33,8 @@
 
 #include "SDL.h"
 #include <deque>
-#include "mon560x192.h"
-#include "savestate.h"
+#include "video/mon560x192.h"
+#include "memory/savestate.h"
 
 
 enum CtrlKey2e{ NO_CTRL_KEY = 0x00, OPEN_APPLE = 0x01, CLOSED_APPLE = 0x02, RESET_KEY = 0x04, CTRL_KEY = 0x08, SHIFT_KEY = 0x10 };

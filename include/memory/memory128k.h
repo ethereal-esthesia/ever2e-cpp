@@ -32,12 +32,12 @@
 #include <cassert>
 #include <string>
 #include <set>
-#include "cpu65c02.h"
-#include "mon560x192.h"
-#include "speaker1bit.h"
-#include "keyboard2e.h"
-#include "savestate.h"
-#include "card16bit.h"
+#include "cpu/cpu65c02.h"
+#include "video/mon560x192.h"
+#include "devices/speaker1bit.h"
+#include "devices/keyboard2e.h"
+#include "memory/savestate.h"
+#include "devices/card16bit.h"
 
 
 #define _MEMORY_TEST_OUTPUT	

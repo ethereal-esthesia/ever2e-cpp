@@ -24,7 +24,7 @@
  *************************************************************************/
  
 
-#include "manager.h"
+#include "platform/manager.h"
 
 
 using namespace std;

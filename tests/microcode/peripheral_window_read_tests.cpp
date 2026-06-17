@@ -7,10 +7,10 @@
 #include <unistd.h>
 #include <vector>
 
-#include "memory128k.h"
-#include "mon560x192.h"
-#include "pixel.h"
-#include "drive5_25.h"
+#include "memory/memory128k.h"
+#include "video/mon560x192.h"
+#include "video/pixel.h"
+#include "devices/drive5_25.h"
 
 namespace {
 

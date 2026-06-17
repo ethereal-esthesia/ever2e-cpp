@@ -24,7 +24,7 @@
  *************************************************************************/
  
 
-#include "colorconv.h"
+#include "video/colorconv.h"
 
 
 using namespace std;

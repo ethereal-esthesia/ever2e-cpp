@@ -24,7 +24,7 @@
  *************************************************************************/
  
 
-#include "pixel.h"
+#include "video/pixel.h"
 
 
 using namespace std;

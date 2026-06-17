@@ -22,7 +22,7 @@
  *   shane@cursorcorner.net                                              *
  *                                                                       *
  *************************************************************************/
-#include "drive5_25.h"
+#include "devices/drive5_25.h"
 
 #include <algorithm>
 #include <cerrno>

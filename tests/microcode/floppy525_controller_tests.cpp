@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <vector>
 
-#include "drive5_25.h"
+#include "devices/drive5_25.h"
 
 namespace {
 

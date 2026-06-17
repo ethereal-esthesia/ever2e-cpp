@@ -11,9 +11,9 @@
 #include "cpu/cpu65c02_microcode.h"
 #include "cpu/cpu65c02_opcode.h"
 #include "cpu/cpu65c02_opcode_view.h"
-#include "cpu65c02.h"
-#include "memory128k.h"
-#include "savestate.h"
+#include "cpu/cpu65c02.h"
+#include "memory/memory128k.h"
+#include "memory/savestate.h"
 
 namespace {
 

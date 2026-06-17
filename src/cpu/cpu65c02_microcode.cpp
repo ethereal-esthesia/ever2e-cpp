@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "cpu/cpu65c02_opcode_view.h"
-#include "cpu65c02.h"
+#include "cpu/cpu65c02.h"
 
 namespace {
 

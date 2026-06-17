@@ -24,7 +24,7 @@
  *************************************************************************/
  
 
-#include "speaker1bit.h"
+#include "devices/speaker1bit.h"
 
 
 using namespace std;

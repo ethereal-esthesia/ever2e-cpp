@@ -24,7 +24,7 @@
  *************************************************************************/
  
 
-#include "keytrans2e.h"
+#include "devices/keytrans2e.h"
 
 
 using namespace std;
