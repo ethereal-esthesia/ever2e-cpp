@@ -62,7 +62,7 @@ for vector in (0x3FFA, 0x3FFC, 0x3FFE):
     full_rom[vector] = 0x00
     full_rom[vector + 1] = 0xC6
 
-(out / "DISKII_P6_CUSTOM.rom").write_bytes(slot_rom)
+(out / "DISKII_P6_BOOT_TEST.rom").write_bytes(slot_rom)
 (out / "DISKII_P6_BOOT_TEST.nib").write_bytes(nib)
 (out / "P6_BOOT_16K.rom").write_bytes(full_rom)
 (out / "custom-p6-boot.emu").write_text("""machine.layout=APPLE_IIE
@@ -76,7 +76,7 @@ machine.layout.slot.3=
 machine.layout.slot.4=
 machine.layout.slot.5=
 machine.layout.slot.6=drive.floppy525.Floppy525Controller
-machine.layout.slot.6.rom.file=DISKII_P6_CUSTOM.rom
+machine.layout.slot.6.rom.file=DISKII_P6_BOOT_TEST.rom
 machine.layout.slot.6.drive.1.file=DISKII_P6_BOOT_TEST.nib
 machine.layout.slot.6.drive.2.file=
 machine.layout.slot.7=
@@ -92,4 +92,4 @@ env QUIET_BUILD="$QUIET_BUILD" "$RUN_SH" \
   --print-cpu-state-at-exit \
   "$@"
 
-echo "P6 BOOT SMOKE PASS: generated clean slot ROM + generated custom boot NIB"
+echo "P6 BOOT SMOKE PASS: generated clean custom-stream slot ROM + generated custom boot NIB"

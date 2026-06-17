@@ -94,6 +94,8 @@ Notes:
 - A default config is provided at `release/Apple2eNoSlots.emu`.
 - ROM loading follows `binary.file` from the `.emu` config (relative paths are
   resolved from the `.emu` file directory).
+- Apple II ROM images are not committed. Put a local `APPLE2E.ROM` next to the
+  release `.emu` files, or pass one with `--rom-file` / `ROM_FILE`.
 - `--rom-file` overrides `.emu` `binary.file` for a run.
 - `--set name=value` overrides any `.emu` property after the profile is loaded.
   It may be repeated; `--set-property` is an alias. Path properties support
@@ -112,7 +114,7 @@ Notes:
   - default `STEPS=12`
   - default final PC check `REQUIRE_HALT_PC=0xC000`
 - `run_p6_boot_smoke.sh` is a proprietary-free Disk II smoke check:
-  - generates a temporary clean slot-6 P6 ROM
+  - generates a temporary boot-test slot-6 P6 ROM
   - generates a temporary custom NIB boot disk
   - generates a temporary 16KB wrapper ROM whose reset vector enters `$C600`
   - halts only if the generated payload reaches `$080A`
