@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_SH="$ROOT_DIR/scripts/macos/run.sh"
 BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build/macos}"
-EMU_FILE="${EMU_FILE:-$ROOT_DIR/release/Apple2eNoSlots.emu}"
+EMU_FILE="${EMU_FILE:-$ROOT_DIR/profiles/apple2e.emu}"
 QUIET_BUILD="${QUIET_BUILD:-1}"
 STEPS="${STEPS:-12}"
 UPDATE_BASELINE="${UPDATE_BASELINE:-0}"

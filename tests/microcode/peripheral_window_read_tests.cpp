@@ -65,7 +65,7 @@ static std::filesystem::path writeGeneratedSlotRom()
 
 E2TEST_CASE(peripheralWindowReadFallsBackToFloatingBusWhenSlotCardMissing)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -88,7 +88,7 @@ E2TEST_CASE(peripheralWindowReadFallsBackToFloatingBusWhenSlotCardMissing)
 
 E2TEST_CASE(slot3ReadSetsIntc8romAndFallsBackToFloatingBusWhenSlot3Missing)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -121,7 +121,7 @@ E2TEST_CASE(slot3ReadSetsIntc8romAndFallsBackToFloatingBusWhenSlot3Missing)
 
 E2TEST_CASE(expansionWindowReadsUseLastSelectedSlotRom)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -141,7 +141,7 @@ E2TEST_CASE(expansionWindowReadsUseLastSelectedSlotRom)
 
 E2TEST_CASE(expansionWindowSelectionSwitchesWithNewSlotAccess)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -167,7 +167,7 @@ E2TEST_CASE(expansionWindowSelectionSwitchesWithNewSlotAccess)
 
 E2TEST_CASE(expansionWindowResetByCfffFallsBackToInternalRom)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -195,7 +195,7 @@ E2TEST_CASE(expansionWindowResetByCfffFallsBackToInternalRom)
 
 E2TEST_CASE(floppy525ControllerExposesDiskIiSlotRom)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);

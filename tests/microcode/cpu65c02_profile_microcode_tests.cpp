@@ -231,7 +231,7 @@ E2TEST_CASE(cpuDescriptorProfilesExposeCmdOverrides)
 
 E2TEST_CASE(runtimeCmdProfileNopWidthDiffersFromWdc)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memoryWdc(new Memory128k());
@@ -319,7 +319,7 @@ E2TEST_CASE(cmdProfileMeasuredCompatibilityNopWidthsMatchMameTable)
 
 E2TEST_CASE(runtimeCmdProfileUsesHardwareValidatedNopTimingAndLength)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -349,7 +349,7 @@ E2TEST_CASE(runtimeCmdProfileUsesHardwareValidatedNopTimingAndLength)
 
 E2TEST_CASE(runtimeCmdEightCycleUndocumentedNopRetiresAfterExactlyEightCycles)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -375,7 +375,7 @@ E2TEST_CASE(runtimeCmdEightCycleUndocumentedNopRetiresAfterExactlyEightCycles)
 
 E2TEST_CASE(runtimeJmpAbsIndXHasNoPageCrossPenalty)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -399,7 +399,7 @@ E2TEST_CASE(runtimeJmpAbsIndXHasNoPageCrossPenalty)
 
 E2TEST_CASE(runtimeStaAbsXHasNoExtraPageCrossCycle)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -422,7 +422,7 @@ E2TEST_CASE(runtimeStaAbsXHasNoExtraPageCrossCycle)
 
 E2TEST_CASE(runtimeLdaAbsXPageCrossLastCycleCountAddsOne)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -449,7 +449,7 @@ E2TEST_CASE(runtimeLdaAbsXPageCrossLastCycleCountAddsOne)
 
 E2TEST_CASE(runtimeLdaIndYPageCrossLastCycleCountAddsOne)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -477,7 +477,7 @@ E2TEST_CASE(runtimeLdaIndYPageCrossLastCycleCountAddsOne)
 
 E2TEST_CASE(runtimeIrqServiceTakesSixCyclesAndVectors)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -502,7 +502,7 @@ E2TEST_CASE(runtimeIrqServiceTakesSixCyclesAndVectors)
 
 E2TEST_CASE(runtimeNmiServiceTakesSixCyclesAndVectors)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -527,7 +527,7 @@ E2TEST_CASE(runtimeNmiServiceTakesSixCyclesAndVectors)
 
 E2TEST_CASE(runtimeMaskedIrqDoesNotPreemptWhenInterruptDisableSet)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -551,7 +551,7 @@ E2TEST_CASE(runtimeMaskedIrqDoesNotPreemptWhenInterruptDisableSet)
 
 E2TEST_CASE(runtimeNmiPreemptsNextInstructionEvenWhenInterruptDisableSet)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());
@@ -584,7 +584,7 @@ E2TEST_CASE(runtimeNmiPreemptsNextInstructionEvenWhenInterruptDisableSet)
 
 E2TEST_CASE(runtimeBrkTakesSevenCyclesAndPushesBreakFlagToStack)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     std::unique_ptr<Memory128k> memory(new Memory128k());

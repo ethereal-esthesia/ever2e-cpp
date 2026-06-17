@@ -4,16 +4,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build/macos}"
 OUTPUT_BIN="${OUTPUT_BIN:-$BUILD_DIR/ever2e}"
-RELEASE_DIR="$ROOT_DIR/release"
+PROFILE_DIR="${PROFILE_DIR:-$ROOT_DIR/profiles}"
 REBUILD_ON_RUN="${REBUILD_ON_RUN:-1}"
-DEFAULT_EMU_FILE="${DEFAULT_EMU_FILE:-Apple2eNoSlots.emu}"
+DEFAULT_EMU_FILE="${DEFAULT_EMU_FILE:-apple2e.emu}"
 
 if [[ "$REBUILD_ON_RUN" == "1" || ! -x "$OUTPUT_BIN" ]]; then
   BUILD_TARGETS="${BUILD_TARGETS:-ever2e}" "$ROOT_DIR/scripts/macos/build.sh"
 fi
 
-if [[ ! -d "$RELEASE_DIR" ]]; then
-  echo "Error: release directory not found at $RELEASE_DIR" >&2
+if [[ ! -d "$PROFILE_DIR" ]]; then
+  echo "Error: profile directory not found at $PROFILE_DIR" >&2
   exit 1
 fi
 
@@ -33,13 +33,13 @@ elif [[ "$EMU_ARG" == "~/"* ]]; then
 fi
 
 # Convenience path resolution:
-# - bare names like "Apple2eNoSlots.emu" resolve to release/<name>
-# - relative paths that do not exist from repo root fallback to release/<path>
+# - bare names like "apple2e.emu" resolve to profiles/<name>
+# - relative paths that do not exist from repo root fallback to profiles/<path>
 if [[ "$EMU_ARG" != /* ]]; then
   if [[ "$EMU_ARG" != *"/"* && "$EMU_ARG" != *"\\"* ]]; then
-    EMU_ARG="$RELEASE_DIR/$EMU_ARG"
-  elif [[ ! -f "$EMU_ARG" && -f "$RELEASE_DIR/$EMU_ARG" ]]; then
-    EMU_ARG="$RELEASE_DIR/$EMU_ARG"
+    EMU_ARG="$PROFILE_DIR/$EMU_ARG"
+  elif [[ ! -f "$EMU_ARG" && -f "$PROFILE_DIR/$EMU_ARG" ]]; then
+    EMU_ARG="$PROFILE_DIR/$EMU_ARG"
   fi
 fi
 

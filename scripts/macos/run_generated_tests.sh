@@ -3,13 +3,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_SH="$ROOT_DIR/scripts/macos/run.sh"
-EMU_FILE="${EMU_FILE:-$ROOT_DIR/release/Apple2eNoSlots.emu}"
+EMU_FILE="${EMU_FILE:-$ROOT_DIR/profiles/apple2e.emu}"
 QUIET_BUILD="${QUIET_BUILD:-1}"
 ROM_FILE="${ROM_FILE:-}"
 ROM_GENERATED="${ROM_GENERATED:-}"
 TMP_ROM_FILE=""
 
-PASTE_FILE="${PASTE_FILE:-$ROOT_DIR/release/opcode_smoke_loader_hgr_mem_32k.mon}"
+PASTE_FILE="${PASTE_FILE:-$ROOT_DIR/tests/fixtures/opcode_smoke_loader_hgr_mem_32k.mon}"
 STEPS="${STEPS:-200000000}"
 HALT_EXECUTION="${HALT_EXECUTION:-0x6A45,0x6A33}"
 REQUIRE_HALT_PC="${REQUIRE_HALT_PC:-0x6A45}"

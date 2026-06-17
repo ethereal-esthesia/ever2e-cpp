@@ -5,5 +5,5 @@ Thumbs.db
 Desktop.ini
 build/
 local/
-release/**/*.[Rr][Oo][Mm]
-release/**/*.[Pp][Rr][Oo][Mm]
+profiles/**/*.[Rr][Oo][Mm]
+profiles/**/*.[Pp][Rr][Oo][Mm]

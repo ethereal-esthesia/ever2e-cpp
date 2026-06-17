@@ -141,7 +141,7 @@ E2TEST_CASE(floatingBusBobReferenceMatchesEver2ePyOracleLineByLine)
         return;
     }
 
-    ScopedCwd cwd(cppRoot + "/release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);

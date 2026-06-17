@@ -1,5 +1,5 @@
 machine.layout=APPLE_IIE
-binary.file=APPLE2E.ROM
+binary.file=../local/roms/APPLE2E.ROM
 address.start=0xC000
 machine.cpu.mult=1
 machine.display.mono=off

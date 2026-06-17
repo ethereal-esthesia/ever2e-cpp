@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_SH="$ROOT_DIR/scripts/macos/run.sh"
-EMU_FILE="${EMU_FILE:-$ROOT_DIR/release/Apple2eNoSlots.emu}"
+EMU_FILE="${EMU_FILE:-$ROOT_DIR/profiles/apple2e.emu}"
 QUIET_BUILD="${QUIET_BUILD:-1}"
 ROM_FILE="${ROM_FILE:-}"
 ROM_GENERATED="${ROM_GENERATED:-loop}"

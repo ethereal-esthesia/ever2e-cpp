@@ -250,7 +250,7 @@ EventLoop::EventLoop( Cpu65c02::CpuProfile cpuProfile, const std::string& romPat
 
 	fullScreen = false;
 	headlessMode = headless;
-	manager = new EventManager(WINDOW_X_SIZE, WINDOW_Y_SIZE, BPP, false, "Ever2e", "icon.png");
+	manager = new EventManager(WINDOW_X_SIZE, WINDOW_Y_SIZE, BPP, false, "Ever2e", "assets/icon.png");
 	if( headlessMode ) {
 		surface = new PixelSurface(RASTER_X_SIZE, RASTER_Y_SIZE, BPP);
 		ownsSurface = true;

@@ -8,8 +8,8 @@ E2_PORT_TEST(Cpu32kLongRunCmdIntegrationTest__opcodeLongRun32kReachesPassLoop) {
     E2_PORT_UNIMPLEMENTED("Ported from cpu/Cpu32kLongRunCmdIntegrationTest.java::opcodeLongRun32kReachesPassLoop");
     /*
     Original Java test body:
-    		String emuFile = getProp("ever2e.long32k.emu", "ever2e.smoke32k.emu", "ROMS/Apple2eNoSlots.emu");
-    		String pasteFile = getProp("ever2e.long32k.pasteFile", "ever2e.smoke32k.pasteFile", "ROMS/opcode_smoke_loader_hgr_mem_32k.mon");
+            String emuFile = getProp("ever2e.long32k.emu", "ever2e.smoke32k.emu", "profiles/apple2e.emu");
+            String pasteFile = getProp("ever2e.long32k.pasteFile", "ever2e.smoke32k.pasteFile", "tests/fixtures/opcode_smoke_loader_hgr_mem_32k.mon");
     		String steps = getProp("ever2e.long32k.steps", "ever2e.smoke32k.steps", "120000000");
     		String haltExecution = getProp("ever2e.long32k.haltExecution", "ever2e.smoke32k.haltExecution", "0x6A45,0x6A33");
     		String cpuProfile = getProp("ever2e.long32k.cpuProfile", "ever2e.smoke32k.cpuProfile", "cmd");

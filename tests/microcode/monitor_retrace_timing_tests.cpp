@@ -43,7 +43,7 @@ private:
 
 E2TEST_CASE(monitorRetraceTimingMatchesAppleIIeNtscDurationsAcrossTenFrames)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);

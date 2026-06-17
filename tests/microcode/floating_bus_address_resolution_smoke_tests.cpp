@@ -102,7 +102,7 @@ bool isNonHiresTextWindow(int addr)
 
 E2TEST_CASE(floatingBusAddressSmokeTextModeRangeAcrossEveryXY)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -122,7 +122,7 @@ E2TEST_CASE(floatingBusAddressSmokeTextModeRangeAcrossEveryXY)
 
 E2TEST_CASE(floatingBusAddressSmokeHiresPage1RangeAcrossEveryXY)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -137,7 +137,7 @@ E2TEST_CASE(floatingBusAddressSmokeHiresPage1RangeAcrossEveryXY)
 
 E2TEST_CASE(floatingBusAddressSmokeHiresPage2RangeAcrossEveryXY)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);
@@ -152,7 +152,7 @@ E2TEST_CASE(floatingBusAddressSmokeHiresPage2RangeAcrossEveryXY)
 
 E2TEST_CASE(floatingBusAddressSmokeMixedModeRangeAcrossEveryXY)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     PixelSurface surface(560, 384, 32);

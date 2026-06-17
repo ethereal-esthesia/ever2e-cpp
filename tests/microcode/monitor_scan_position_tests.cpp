@@ -96,7 +96,7 @@ void applyDisplayMode(Cpu65c02& cpu, DisplayModeCase modeCase)
 
 E2TEST_CASE(monitorHorizontalAndVerticalReadPositionsMatchEveryCycleAcrossAllModes)
 {
-    ScopedCwd cwd("release");
+    ScopedCwd cwd(e2test::testRomDirectory());
     E2TEST_ASSERT_TRUE(cwd.active());
 
     const int framesToRun = 10;

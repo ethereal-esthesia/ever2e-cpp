@@ -1,216 +1,139 @@
--------------------------------------------------------------------------------
-                                  APPLICATION                                  
--------------------------------------------------------------------------------
+# Ever2e C++
 
-To run the application, activate the "ever2e" executable.
+Ever2e is an Apple IIe emulator ported to a CMake-based C++ build. The repo
+keeps source, profiles, samples, and tests in separate folders; local ROMs,
+disk images, generated outputs, and archived legacy release files belong under
+`local/`, which is intentionally ignored by git.
 
-Disk II image paths can be configured in `.emu` profiles or overridden at
-startup with `--disk1` and `--disk2`.
+## Layout
 
-A few sample programs are included with the application.
+- `src/`, `include/` - emulator source and SDL3 compatibility wrappers.
+- `profiles/apple2e.emu` - the default Apple IIe profile with no expansion
+  cards installed.
+- `samples/` - BASIC programs and manual smoke-test inputs.
+- `tests/fixtures/` - committed data used by automated tests and scripts.
+- `scripts/macos/` - build, run, and smoke-test helpers.
+- `local/` - private workspace for ROMs, disk images, generated files, and
+  archived files removed from the committed tree.
 
-License information can be found in the file "LICENSE"
+## Dependencies
 
-Bugs reports / comments can be submitted here:
-http://www.cursorcorner.net/contact.php
+Required:
 
+- CMake 3.21 or newer
+- A C++17 compiler
+- SDL3 development libraries
 
--------------------------------------------------------------------------------
-                          CROSS-PLATFORM BUILD (CMAKE)
--------------------------------------------------------------------------------
+Optional:
 
-This repo now uses CMake/CTest as the source of truth for all platforms.
+- FFmpeg development libraries for `--record-video`
+
+On macOS:
+
+```sh
+brew install sdl3
+```
+
+## Build And Test
 
 From the repository root:
 
-    cmake --preset macos-release
-    cmake --build --preset macos-release
-    ctest --preset macos-release
+```sh
+cmake --preset macos-release
+cmake --build --preset macos-release
+ctest --preset macos-release
+```
 
 Platform presets:
+
 - macOS: `macos-release`
 - Linux: `linux-release`
 - Windows: `windows-release`
 
-CI tiers (GitHub Actions):
-- Smoke: `./scripts/macos/run_smoke.sh`
-- Clean Disk II P6 boot smoke: `./scripts/macos/run_p6_boot_smoke.sh`
-- Main tests: `./scripts/macos/run_main_tests.sh`
+The macOS helper builds the emulator and microcode tests:
 
-`ever2e` requires a positional `.emu` path:
+```sh
+./scripts/macos/build.sh
+```
 
-    ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
+## Run
 
+The emulator requires a positional `.emu` profile. The default helper profile is
+`profiles/apple2e.emu`.
 
--------------------------------------------------------------------------------
-                               MACOS QUICK START
--------------------------------------------------------------------------------
+```sh
+./scripts/macos/run.sh
+./scripts/macos/run.sh --rom-file /absolute/path/to/APPLE2E.ROM
+./build/macos/ever2e profiles/apple2e.emu --rom-file /absolute/path/to/APPLE2E.ROM
+```
 
-From the repository root:
+By default, `profiles/apple2e.emu` looks for a local ROM at
+`local/roms/APPLE2E.ROM`. Apple II ROM images are not committed.
 
-    ./scripts/macos/build.sh
-    ./scripts/macos/run.sh
-    ./scripts/macos/run_smoke.sh
-    ./scripts/macos/run_p6_boot_smoke.sh
-    ./scripts/macos/run_trace_baseline.sh
-    ./scripts/macos/run_main_tests.sh
-    ./scripts/macos/run_microcode_tests.sh
-    ./scripts/macos/run_generated_tests.sh
+## Profile Overrides
 
-Direct binary usage (required positional `.emu` config):
+Use `--set name=value` to override any `.emu` property after the profile is
+loaded. `--set-property` is an alias. Path values support `~` expansion and are
+resolved relative to the profile unless absolute.
 
-    ./build/macos/ever2e release/Apple2eNoSlots.emu
-    ./build/macos/ever2e release/Apple2eNoSlots.emu --headless --steps 1000
-    ./build/macos/ever2e release/Apple2eNoSlots.emu --rom-file /absolute/path/to/APPLE2E.ROM --headless --steps 1000
-    ./build/macos/ever2e release/Apple2eNoSlots.emu --disk1 local/disk-smoke/disks/custom-p6-boot.nib --headless --steps 1000
+Disk II drive image paths can be supplied per run:
 
-Recording video/audio:
+```sh
+./scripts/macos/run.sh \
+  --rom-file /absolute/path/to/APPLE2E.ROM \
+  --set machine.layout.slot.6.rom.file=/absolute/path/to/DISKII_P6.rom \
+  --disk1 /absolute/path/to/disk.nib
+```
 
-    ./build/macos/ever2e release/Apple2eNoSlots.emu \
-        --headless \
-        --paste-file samples/quick_flip.bas \
-        --steps 20000000 \
-        --record-video build/recordings/quick_flip_headless.mkv
+`--disk1` and `--disk2` enable the slot 6 Disk II controller and override drive
+1/2 image paths. A 256-byte slot ROM is still required with
+`machine.layout.slot.6.rom.file`; the disk flags do not provide one.
+
+## Automation Scripts
+
+```sh
+./scripts/macos/run_smoke.sh
+./scripts/macos/run_p6_boot_smoke.sh
+./scripts/macos/run_trace_baseline.sh
+./scripts/macos/run_main_tests.sh
+./scripts/macos/run_microcode_tests.sh
+./scripts/macos/run_generated_tests.sh
+```
+
+Useful environment overrides:
+
+- `ROM_FILE=/absolute/path/to/APPLE2E.ROM`
+- `ROM_GENERATED=loop` for scripts that support a temporary loop ROM
+- `EMU_FILE=/absolute/path/to/profile.emu`
+- `STEPS=120000000`
+- `REBUILD_ON_RUN=0`
+
+`run_p6_boot_smoke.sh` is proprietary-free: it generates a temporary slot-6 ROM,
+custom boot disk, and wrapper ROM for the duration of the test.
+
+## Recording
+
+```sh
+./build/macos/ever2e profiles/apple2e.emu \
+  --rom-file /absolute/path/to/APPLE2E.ROM \
+  --headless \
+  --paste-file samples/quick_flip.bas \
+  --steps 20000000 \
+  --record-video build/recordings/quick_flip_headless.mkv
+```
 
 `--record-video` writes a Matroska file with FFV1 video and signed 16-bit mono
-PCM audio. Headless recording renders the emulator display to an offscreen
-560x384 raster buffer instead of scraping the dummy SDL window, and it waits for
-the encoder rather than dropping video frames. Windowed recording uses the same
-recorder but may drop frames if encoding falls behind so interactive emulation
-stays responsive.
+PCM audio when FFmpeg support is available.
 
-Optional cleanup:
+## Cleanup
 
-    ./scripts/macos/clean.sh
+Generated files live under `build/` and local-only assets under `local/`.
 
-Notes:
-- `build.sh` now builds both `ever2e` and `microcode_tests`.
-- `run.sh` and `run_microcode_tests.sh` rebuild by default to avoid stale binaries.
-  Set `REBUILD_ON_RUN=0` to skip rebuild.
-- The run script starts from "release/" so ROM/assets resolve correctly.
-- `run.sh` auto-resolves `.emu` paths from `release/` and defaults to
-  `Apple2eNoSlots.emu` if omitted.
-- The emulator now requires a positional `.emu` config path (no `--emu` flag).
-- A default config is provided at `release/Apple2eNoSlots.emu`.
-- ROM loading follows `binary.file` from the `.emu` config (relative paths are
-  resolved from the `.emu` file directory).
-- Apple II ROM images are not committed. Put a local `APPLE2E.ROM` next to the
-  release `.emu` files, or pass one with `--rom-file` / `ROM_FILE`.
-- `--rom-file` overrides `.emu` `binary.file` for a run.
-- `--set name=value` overrides any `.emu` property after the profile is loaded.
-  It may be repeated; `--set-property` is an alias. Path properties support
-  `~` / `~/...` expansion.
-- `--disk1` and `--disk2` override slot 6 Disk II drive 1/2 image paths for a
-  run and enable the slot 6 controller. `--drive1` and `--drive2` are aliases.
-  A 256-byte slot ROM is still required via `machine.layout.slot.6.rom.file`;
-  these flags do not provide or override one.
-- Scripts accept `ROM_FILE=/absolute/path/to/APPLE2E.ROM` and pass it through.
-- Scripts also support `ROM_GENERATED=loop` to generate a temporary zero-padded
-  16KB ROM that loops forever at `$C000` (not committed to repo).
-- If SDL is installed in a non-standard location, set PKG_CONFIG_PATH before
-  running build.sh.
-- `run_smoke.sh` is a quick headless sanity check:
-  - default `ROM_GENERATED=loop` (temporary 16KB loop ROM, not committed)
-  - default `STEPS=12`
-  - default final PC check `REQUIRE_HALT_PC=0xC000`
-- `run_p6_boot_smoke.sh` is a proprietary-free Disk II smoke check:
-  - generates a temporary boot-test slot-6 P6 ROM
-  - generates a temporary custom NIB boot disk
-  - generates a temporary 16KB wrapper ROM whose reset vector enters `$C600`
-  - halts only if the generated payload reaches `$080A`
-- `run_trace_baseline.sh` is a short deterministic trace parity check:
-  - generates a temporary 16KB loop ROM on the fly (not committed)
-  - writes fresh run trace to `build/macos/trace_loop_actual.csv`
-  - compares against `tests/baselines/cpp_loop_trace_verbose.csv`
-  - to refresh baseline intentionally:
-    - `UPDATE_BASELINE=1 ./scripts/macos/run_trace_baseline.sh`
-- `run_main_tests.sh` is the primary full test entrypoint:
-  - `run_microcode_tests.sh`
-  - `run_generated_tests.sh`
-- `run_generated_tests.sh` runs the long generated test paste-loader with default
-  halt addresses:
-  - PASS loop: `0x33D2`
-  - FAIL loop: `0x33C0`
-  - Runs in unthrottled headless mode for faster bounded runs
-  - Uses `release/Apple2eNoSlots.emu` by default (override with `EMU_FILE=...`)
-  - Override with env vars if needed:
-    - `STEPS=120000000 ./scripts/macos/run_generated_tests.sh`
-    - `EMU_FILE=/path/to/config.emu ./scripts/macos/run_generated_tests.sh`
-    - `HALT_EXECUTION=0x1234,0x5678 ./scripts/macos/run_generated_tests.sh`
-- `run_microcode_tests.sh` and `run_generated_tests.sh` remain available for
-   isolating failures.
- - Example custom ROM runs:
-   - `ROM_FILE=/absolute/path/to/APPLE2E.ROM ./scripts/macos/run_smoke.sh`
-   - `ROM_FILE=/absolute/path/to/APPLE2E.ROM ./scripts/macos/run_main_tests.sh`
-   - `ROM_GENERATED=loop ./scripts/macos/run_smoke.sh`
-   - `REQUIRE_HALT_PC=0xC000 STEPS=12 ./scripts/macos/run_smoke.sh`
+```sh
+./scripts/macos/clean.sh
+```
 
+## License
 
--------------------------------------------------------------------------------
-                                  COMPILATION                                  
--------------------------------------------------------------------------------
-
-Compilation is multi-platform. Supported platforms are listed on the SDL
-website.
-
-Get source code from;
-http://cursorcorner.net/project.html
-
-Install SDL and SDL_image developer libraries:
-http://www.libsdl.org/
-http://www.libsdl.org/projects/SDL_image/
-
-Install FFmpeg developer libraries to enable `--record-video`. If FFmpeg is not
-available at configure time, the emulator still builds but recording support is
-disabled.
-
-Under Windows '98 or later:
-Compile using msysgit or Microsoft Visual C++.
-Originally compiled using msysgit and Eclipse C/C++ (project files included)
-Git for Windows (msysgit) can be downloaded at http://msysgit.github.com/
-link using SDL and SDL_IMAGE libraries
-
-Under Linux:
-use g++ to compile all source files in src directory
-link using SDL and SDL_IMAGE libraries
-
-Under Mac:
-Some of the key names need to be modified in "keytrans2e.cpp" to match Mac
-layout.
-
-
--------------------------------------------------------------------------------
-                                  KNOWN BUGS                                   
--------------------------------------------------------------------------------
-
-DHIRES bits should start scanning 7 pixels before HIRES bits. Could add an
-8-pixel border around a 567x384 screen to make 583x400 windowed mode and
-640x480 in full screen mode. This shift would eliminate the need for an
-alternate DHIRES palette and more accurately represents the expected IIe
-behavior.
-
-The color palette is slightly off. Greys, white, and 3-bit pastel colors should
-all have twice the intensity of 1 and 2-bit colors.
-
-Add save state
-
-Working directory is lost when ever2e is indirectly called, causing the icon
-to disappear and other potential side-effects. This can be fixed by reading
-arg[0] and determining working directory (default "./").
-
-Minor - Open and closed apple keys can not be pressed at the same time.
-
-Minor - CPU speed modifies video sync timing applications - should draw
-every nth frame n times faster to avoid this problem. Use "test_split.bas"
-for an example of the bug (which is actually also a problem with hardware
-speed enhancements on the Apple IIe).
-
-Minor - The speaker tick waveform is very closely matched by the emulator, but
-to get a more precise static pattern of an Apple IIe may require recording a
-single speaker toggle in both directions. The static pattern is surprisingly
-stable between toggles. More research has also shown that the toggle air-
-pressure should be higher when switching from the relaxed to tense diaphragm
-state. The air-pressure physics calculation may be slightly off as well. It is
-currently modeled after spring physics.
-
-Disk II Interface - currently does not report write errors
+Ever2e is licensed under the GNU General Public License v3 or later. See
+`LICENSE`.
