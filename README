@@ -13,7 +13,7 @@ disk images, generated outputs, and archived legacy release files belong under
   cards installed.
 - `samples/` - BASIC programs and manual smoke-test inputs.
 - `tests/fixtures/` - committed data used by automated tests and scripts.
-- `scripts/macos/` - build, run, and smoke-test helpers.
+- `scripts/ever2e.py` - portable build, run, and smoke-test helper.
 - `local/` - private workspace for ROMs, disk images, generated files, and
   archived files removed from the committed tree.
 
@@ -24,6 +24,7 @@ Required:
 - CMake 3.21 or newer
 - A C++17 compiler
 - SDL3 development libraries
+- Python 3 for the portable helper script
 
 Optional:
 
@@ -51,10 +52,11 @@ Platform presets:
 - Linux: `linux-release`
 - Windows: `windows-release`
 
-The macOS helper builds the emulator and microcode tests:
+The portable helper selects the matching CMake preset for the host platform
+(`macos-release`, `linux-release`, or `windows-release`) unless `PRESET` is set:
 
 ```sh
-./scripts/macos/build.sh
+python3 scripts/ever2e.py build
 ```
 
 ## Run
@@ -63,9 +65,8 @@ The emulator requires a positional `.emu` profile. The default helper profile is
 `profiles/apple2e.emu`.
 
 ```sh
-./scripts/macos/run.sh
-./scripts/macos/run.sh --rom-file /absolute/path/to/APPLE2E.ROM
-./build/macos/ever2e profiles/apple2e.emu --rom-file /absolute/path/to/APPLE2E.ROM
+python3 scripts/ever2e.py run
+python3 scripts/ever2e.py run --rom-file /absolute/path/to/APPLE2E.ROM
 ```
 
 By default, `profiles/apple2e.emu` looks for a local ROM at
@@ -80,7 +81,7 @@ resolved relative to the profile unless absolute.
 Disk II drive image paths can be supplied per run:
 
 ```sh
-./scripts/macos/run.sh \
+python3 scripts/ever2e.py run \
   --rom-file /absolute/path/to/APPLE2E.ROM \
   --set machine.layout.slot.6.rom.file=/absolute/path/to/DISKII_P6.rom \
   --disk1 /absolute/path/to/disk.nib
@@ -93,29 +94,36 @@ Disk II drive image paths can be supplied per run:
 ## Automation Scripts
 
 ```sh
-./scripts/macos/run_smoke.sh
-./scripts/macos/run_p6_boot_smoke.sh
-./scripts/macos/run_trace_baseline.sh
-./scripts/macos/run_main_tests.sh
-./scripts/macos/run_microcode_tests.sh
-./scripts/macos/run_generated_tests.sh
+python3 scripts/ever2e.py smoke
+python3 scripts/ever2e.py p6-boot-smoke
+python3 scripts/ever2e.py trace-baseline
+python3 scripts/ever2e.py microcode-tests
+python3 scripts/ever2e.py generated-tests
+python3 scripts/ever2e.py main-tests
 ```
 
 Useful environment overrides:
 
+- `PRESET=linux-release`
+- `BUILD_TARGETS="ever2e microcode_tests"`
 - `ROM_FILE=/absolute/path/to/APPLE2E.ROM`
 - `ROM_GENERATED=loop` for scripts that support a temporary loop ROM
 - `EMU_FILE=/absolute/path/to/profile.emu`
 - `STEPS=120000000`
 - `REBUILD_ON_RUN=0`
 
-`run_p6_boot_smoke.sh` is proprietary-free: it generates a temporary slot-6 ROM,
+On Windows, use `py scripts/ever2e.py ...` or `python scripts/ever2e.py ...`
+depending on how Python is installed.
+
+`p6-boot-smoke` is proprietary-free: it generates a temporary slot-6 ROM,
 custom boot disk, and wrapper ROM for the duration of the test.
+`generated-tests` and `main-tests` run the long paste-loader flow and require a
+real Apple IIe ROM via `ROM_FILE` or `local/roms/APPLE2E.ROM`.
 
 ## Recording
 
 ```sh
-./build/macos/ever2e profiles/apple2e.emu \
+python3 scripts/ever2e.py run \
   --rom-file /absolute/path/to/APPLE2E.ROM \
   --headless \
   --paste-file samples/quick_flip.bas \
@@ -131,7 +139,7 @@ PCM audio when FFmpeg support is available.
 Generated files live under `build/` and local-only assets under `local/`.
 
 ```sh
-./scripts/macos/clean.sh
+python3 scripts/ever2e.py clean
 ```
 
 ## License
